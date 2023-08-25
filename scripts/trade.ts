@@ -2,6 +2,14 @@ import { ethers } from "hardhat";
 import pair_ABI from "./pair_ABI.json";
 
 async function main() {
+  // The minimum ratio
+  const targetRatioDecimals = 0.0000338;
+
+  const amplifier = 10000000000n; // to get rid of rounding issues
+  // max number   = 9007199254740991
+
+  const targetRatio =  BigInt(Math.round(Number(amplifier) * targetRatioDecimals));
+  
 
   // Replace this with your RPC endpoint for PulseChain
   const RPC_URL = 'https://rpc.pulsechain.com';
@@ -20,20 +28,39 @@ async function main() {
   );
 
 
-  async function getRatio() {
+  const getRatio = async () => {
       try {
-          const data = await pair_contract.getReserves();
-          console.log("reserves", data);
+          
+          const reserves = await pair_contract.getReserves();
+          const ratio = (amplifier * reserves[1]) / reserves[0];
+          console.log("ratio", ratio);
+
+          return ratio;
 
       } catch (err) {
           console.error('Error fetching ratio:', err);
       }
   } 
 
+
+  const tradeIfRatio = async () => {
+    const ratio = await getRatio();
+    console.log(`Ratio: ${ratio}, targetRatio: ${targetRatio}`);
+    if (ratio && ratio > targetRatio) {
+      console.log(`hurray, let's trade`);
+    }
+    else {
+      console.log(`shitty price, let's not trade`);
+    }
+  }
+
+
   // This is a simple polling mechanism to call getRatio every second.
   // You might want to optimize it to be event-driven if the blockchain supports such events.
-  //setInterval(getRatio, 10000);
-  getRatio();
+  //setInterval(tradeIfRatio, 1000);
+  
+  await tradeIfRatio();
+  
 }
 
 // We recommend this pattern to be able to use async/await everywhere
