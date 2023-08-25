@@ -11,7 +11,6 @@ async function main() {
   const targetRatio =  BigInt(Math.round(Number(amplifier) * targetRatioDecimals));
   
 
-  // Replace this with your RPC endpoint for PulseChain
   const RPC_URL = 'https://rpc.pulsechain.com';
 
   const DAI_ADDRESS = '0xefD766cCb38EaF1dfd701853BFCe31359239F305';
@@ -48,6 +47,12 @@ async function main() {
     console.log(`Ratio: ${ratio}, targetRatio: ${targetRatio}`);
     if (ratio && ratio > targetRatio) {
       console.log(`hurray, let's trade`);
+
+      const executeTrade = async () => {
+        // TODO
+      }
+
+      await executeTrade();
     }
     else {
       console.log(`shitty price, let's not trade`);
