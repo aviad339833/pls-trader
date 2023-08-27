@@ -1,5 +1,6 @@
 import { ethers } from "hardhat";
 import pair_ABI from "./pair_ABI.json";
+import router_ABI from "./router_ABI.json";
 
 async function main() {
   // The minimum ratio
@@ -17,6 +18,7 @@ const hardhatWalletKey = '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae78
   const DAI_ADDRESS = '0xefD766cCb38EaF1dfd701853BFCe31359239F305';
   const WPLS_ADDRESS = '0xa1077a294dde1b09bb078844df40758a5d0f9a27';
   const PAIR_ADDRESS = '0xe56043671df55de5cdf8459710433c10324de0ae';
+  const ROUTER_ADDRESS = '0x98bf93ebf5c380C0e6Ae8e192A7e2AE08edAcc02';
 
   
 
@@ -27,6 +29,11 @@ const hardhatWalletKey = '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae78
    const pair_contract = new ethers.Contract(
     PAIR_ADDRESS,
     pair_ABI,
+    signer
+  ); 
+  const router_contract = new ethers.Contract(
+    ROUTER_ADDRESS,
+    router_ABI,
     signer
   ); 
   /* const pair_contract = new ethers.BaseContract(
@@ -41,7 +48,6 @@ const hardhatWalletKey = '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae78
           
           const reserves = await pair_contract.getReserves();
           const ratio = (amplifier * reserves[1]) / reserves[0];
-          console.log("ratio", ratio);
 
           return ratio;
 
@@ -59,14 +65,17 @@ const hardhatWalletKey = '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae78
 
       const usevalue = 100000;
 
+      const block = await provider.getBlock('latest');
+      const timestamp = block!.timestamp;
+      const deadline = timestamp + (60 * 150);
+      console.log('timestamp', timestamp, deadline)
+
       const executeTrade = async () => {
-        // TODO
-        await pair_contract.swapETHForExactTokens(
+        await router_contract.swapETHForExactTokens(
           1, // amountOutMin (uint256)
-          [ethers.ZeroAddress, DAI_ADDRESS], // path (address[])
+          [WPLS_ADDRESS, DAI_ADDRESS], // path (address[])
           signer.address, // to (address)
-          4317403, // deadline (uint256)
-          usevalue, // value (uint256)
+          deadline, // deadline (uint256)
           { value: usevalue }
         )
 

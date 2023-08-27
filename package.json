@@ -1,6 +1,6 @@
 {
   "scripts": {
-    "fork": "npx hardhat node --fork https://rpc.pulsechain.com --fork-block-number 3317403"
+    "fork": "npx hardhat node --fork https://rpc.pulsechain.com --fork-block-number 18156443"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^3.0.0",
