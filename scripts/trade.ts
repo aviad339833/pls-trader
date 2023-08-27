@@ -1,6 +1,7 @@
 import { ethers } from "hardhat";
 import pair_ABI from "./pair_ABI.json";
 import router_ABI from "./router_ABI.json";
+import wpls_ABI from "./wpls_ABI.json";
 
 async function main() {
   // The minimum ratio
@@ -36,12 +37,16 @@ const hardhatWalletKey = '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae78
     router_ABI,
     signer
   ); 
-  /* const pair_contract = new ethers.BaseContract(
-    PAIR_ADDRESS,
-    pair_ABI,
+  const wpls_contract = new ethers.Contract(
+    WPLS_ADDRESS,
+    wpls_ABI,
     signer
-  ) */
-
+  ); 
+  const dai_contract = new ethers.Contract(
+    DAI_ADDRESS,
+    wpls_ABI,
+    signer
+  ); 
 
   const getRatio = async () => {
       try {
@@ -63,25 +68,39 @@ const hardhatWalletKey = '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae78
     if (ratio && ratio > targetRatio) {
       console.log(`hurray, let's trade`);
 
-      const usevalue = 100000;
+      const usevalue = 100000000;
 
+      // Get the blockchain's timestamp
       const block = await provider.getBlock('latest');
       const timestamp = block!.timestamp;
-      const deadline = timestamp + (60 * 150);
-      console.log('timestamp', timestamp, deadline)
+      const deadline = timestamp + (1000); // add a bit of extra time before deadline. in seconds
+      console.log('timestamp', timestamp, deadline);
+
+      const oldWPLSBalance = await wpls_contract.balanceOf(signer.address);
+      const oldDaiBalance = await dai_contract.balanceOf(signer.address);
+      const oldNativeBalance = await provider.getBalance(signer.address);
 
       const executeTrade = async () => {
         await router_contract.swapETHForExactTokens(
-          1, // amountOutMin (uint256)
+          10, // amountOutMin (uint256)
           [WPLS_ADDRESS, DAI_ADDRESS], // path (address[])
           signer.address, // to (address)
           deadline, // deadline (uint256)
           { value: usevalue }
         )
-
       }
 
+      
+
       await executeTrade();
+
+      const newWPLSBalance = await wpls_contract.balanceOf(signer.address);
+      const newDaiBalance = await dai_contract.balanceOf(signer.address);
+      const newNativeBalance = await provider.getBalance(signer.address);
+
+      console.log(`WPLS balances. Old: ${oldWPLSBalance}. New: ${newWPLSBalance}. Diff: ${newWPLSBalance - oldWPLSBalance}` );
+      console.log(`DAI balances. Old: ${oldDaiBalance}. New: ${newDaiBalance}. Diff: ${newDaiBalance - oldDaiBalance}` );
+      console.log(`Native balances. Old: ${oldNativeBalance}. New: ${newNativeBalance}. Diff: ${newNativeBalance - oldNativeBalance}` );
     }
     else {
       console.log(`shitty price, let's not trade`);
