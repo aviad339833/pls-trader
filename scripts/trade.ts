@@ -3,13 +3,47 @@ import pair_ABI from "./pair_ABI.json";
 import router_ABI from "./router_ABI.json";
 import wpls_ABI from "./wpls_ABI.json";
 import { setNonce } from "@nomicfoundation/hardhat-toolbox/network-helpers";
+import readline from "readline"; // Import readline module
+
+interface UserInputs {
+  targetPrice: number;
+  triggerAbove: boolean;
+  tradePLStoDAIInput: boolean;
+}
+
+async function gatherUserInputs(): Promise<UserInputs> {
+  return new Promise((resolve) => {
+    const rl = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout,
+    });
+
+    let targetPrice: number, triggerAbove: boolean, tradePLStoDAIInput: boolean;
+
+    rl.question("Enter target price: ", (price) => {
+      targetPrice = parseFloat(price);
+      rl.question(
+        "Trigger a trade if price is above (true/false): ",
+        (above) => {
+          triggerAbove = above === "true";
+          rl.question("Trade PLS to DAI? (true/false): ", (tradePLS) => {
+            tradePLStoDAIInput = tradePLS === "true";
+            rl.close();
+            resolve({ targetPrice, triggerAbove, tradePLStoDAIInput });
+          });
+        }
+      );
+    });
+  });
+}
 
 async function main() {
+  const { targetPrice, triggerAbove, tradePLStoDAIInput } =
+    await gatherUserInputs();
   // The three most important variables
-  const targetRatioDecimalsPLStoDai = 0.000033996795663;
-  const targetRatioDecimalsDaiToPLS = 2000;
-  const tradePLStoDAI = false; // true if trading PLS to DAI, false if DAI to PLS
-  const shouldTradeUp = false; // false price need to go below target to trigger a price
+  const targetRatioDecimalsPLStoDai = targetPrice;
+  const tradePLStoDAI = tradePLStoDAIInput;
+  const shouldTradeUp = triggerAbove;
 
   // two next important variables
   const hardhatWalletKey =
@@ -20,8 +54,9 @@ async function main() {
   const amplifier = 10000000000n; // to get rid of rounding issues
 
   let targetRatio: BigInt;
+
   targetRatio = BigInt(
-    Math.round(Number(amplifier) * targetRatioDecimalsDaiToPLS)
+    Math.round(Number(amplifier) * targetRatioDecimalsPLStoDai)
   );
 
   // In PulseChain mainnet
@@ -46,11 +81,8 @@ async function main() {
     try {
       const reserves = await pair_contract.getReserves();
       let ratio: BigInt;
-      if (tradePLStoDAI) {
-        ratio = (amplifier * reserves[1]) / reserves[0];
-      } else {
-        ratio = (amplifier * reserves[0]) / reserves[1];
-      }
+
+      ratio = (amplifier * reserves[1]) / reserves[0];
 
       return ratio;
     } catch (err) {
@@ -89,6 +121,9 @@ async function main() {
       //const oldWPLSBalance = await wpls_contract.balanceOf(signer.address);
       const oldDaiBalance = await dai_contract.balanceOf(signer.address);
       const oldNativeBalance = await provider.getBalance(signer.address);
+
+      console.log(`your DAI balance: `, oldDaiBalance);
+      console.log(`your PLS balance: `, oldNativeBalance);
 
       const executeTrade = async () => {
         if (tradePLStoDAI) {
