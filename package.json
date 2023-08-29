@@ -9,6 +9,7 @@
     "ts-node": "^10.9.1"
   },
   "dependencies": {
+    "dotenv": "^16.3.1",
     "readline-sync": "^1.4.10"
   }
 }

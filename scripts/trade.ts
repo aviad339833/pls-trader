@@ -4,6 +4,7 @@ import router_ABI from "./router_ABI.json";
 import wpls_ABI from "./wpls_ABI.json";
 import { setNonce } from "@nomicfoundation/hardhat-toolbox/network-helpers";
 import readline from "readline"; // Import readline module
+require("dotenv").config();
 
 interface UserInputs {
   targetPrice: number;
@@ -46,10 +47,13 @@ async function main() {
   const shouldTradeUp = triggerAbove;
 
   // two next important variables
-  const hardhatWalletKey =
-    "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
-  const RPC_URL = "http://127.0.0.1:8545";
-  //const RPC_URL = 'https://rpc.pulsechain.com';
+  const hardhatWalletKey = process.env.HARDHAT_WALLET_KEY;
+  // const RPC_URL = "http://127.0.0.1:8545";
+  const RPC_URL = "https://rpc.pulsechain.com";
+
+  if (!hardhatWalletKey) {
+    throw new Error("HARDHAT_WALLET_KEY is not defined");
+  }
 
   const amplifier = 10000000000n; // to get rid of rounding issues
 
@@ -127,7 +131,7 @@ async function main() {
 
       const executeTrade = async () => {
         if (tradePLStoDAI) {
-          const inputPLS = (oldNativeBalance / 100n) * 97n; // leave 3% for gas costs
+          const inputPLS = (oldNativeBalance / 100n) * 95n; // leave 3% for gas costs
 
           await router_contract.swapExactETHForTokens(
             1, // amountOutMin (uint256) (slippage)
@@ -198,13 +202,16 @@ async function main() {
     let result = await tradeIfRatio(shouldTradeUp);
     while (true) {
       await wait(ms);
+      process.stdout.write("\x1Bc"); // Clear the terminal screen
       result = await tradeIfRatio(shouldTradeUp);
     }
   }
-  function wait(ms: number) {
+  function wait(ms: number): Promise<void> {
     return new Promise((resolve) => {
-      console.log(`waiting ${ms} ms...`);
-      setTimeout(resolve, ms);
+      setTimeout(() => {
+        console.log(`waiting ${ms} ms...`);
+        resolve();
+      }, ms);
     });
   }
 
