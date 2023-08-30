@@ -4,6 +4,7 @@ import router_ABI from "./router_ABI.json";
 import wpls_ABI from "./wpls_ABI.json";
 import { setNonce } from "@nomicfoundation/hardhat-toolbox/network-helpers";
 import readline from "readline"; // Import readline module
+import { sendMessage } from "../utils/sendMessage";
 require("dotenv").config();
 
 interface UserInputs {
@@ -46,10 +47,13 @@ async function main() {
   const tradePLStoDAI = tradePLStoDAIInput;
   const shouldTradeUp = triggerAbove;
 
-  // two next important variables
-  const hardhatWalletKey = process.env.HARDHAT_WALLET_KEY;
-  // const RPC_URL = "http://127.0.0.1:8545";
-  const RPC_URL = "https://rpc.pulsechain.com";
+  // two next important variables - LIVE
+  const hardhatWalletKey = process.env.LIVE_WALLET_KEY;
+  const RPC_URL = process.env.LIVE_RPC;
+
+  // two next important variables - TESTING
+  // const hardhatWalletKey = process.env.HARDHAT_PRIVATE_KEY;
+  // const RPC_URL = process.env.RPC_URL_LOCAL;
 
   if (!hardhatWalletKey) {
     throw new Error("HARDHAT_WALLET_KEY is not defined");
@@ -63,23 +67,29 @@ async function main() {
     Math.round(Number(amplifier) * targetRatioDecimalsPLStoDai)
   );
 
-  // In PulseChain mainnet
-  const DAI_ADDRESS = "0xefD766cCb38EaF1dfd701853BFCe31359239F305";
-  const WPLS_ADDRESS = "0xa1077a294dde1b09bb078844df40758a5d0f9a27";
-  const PAIR_ADDRESS = "0xe56043671df55de5cdf8459710433c10324de0ae";
-  const ROUTER_ADDRESS = "0x98bf93ebf5c380C0e6Ae8e192A7e2AE08edAcc02";
-
   const provider = new ethers.JsonRpcProvider(RPC_URL);
   const signer = new ethers.Wallet(hardhatWalletKey, provider);
 
-  const pair_contract = new ethers.Contract(PAIR_ADDRESS, pair_ABI, signer);
-  let router_contract = new ethers.Contract(ROUTER_ADDRESS, router_ABI, signer);
+  const pair_contract = new ethers.Contract(
+    process.env.PAIR_ADDRESS!,
+    pair_ABI,
+    signer
+  );
+  let router_contract = new ethers.Contract(
+    process.env.ROUTER_ADDRESS!,
+    router_ABI,
+    signer
+  );
   /*   const wpls_contract = new ethers.Contract(
     WPLS_ADDRESS,
     wpls_ABI,
     signer
   );  */
-  const dai_contract = new ethers.Contract(DAI_ADDRESS, wpls_ABI, signer);
+  const dai_contract = new ethers.Contract(
+    process.env.DAI_ADDRESS!,
+    wpls_ABI,
+    signer
+  );
 
   const getRatio = async () => {
     try {
@@ -97,6 +107,7 @@ async function main() {
   const tradeIfRatio = async (shouldTradeUp: any) => {
     const ratio = await getRatio();
     console.log(`Ratio: ${ratio}, targetRatio: ${targetRatio}`);
+    console.log(`left to trade: ${Number(ratio) / Number(targetRatio)}`);
 
     let shouldTrade = false;
     let reason = "";
@@ -131,22 +142,41 @@ async function main() {
 
       const executeTrade = async () => {
         if (tradePLStoDAI) {
-          const inputPLS = (oldNativeBalance / 100n) * 95n; // leave 3% for gas costs
+          const inputPLS = (oldNativeBalance / 100n) * 97n; // leave 3% for gas costs
 
           await router_contract.swapExactETHForTokens(
             1, // amountOutMin (uint256) (slippage)
-            [WPLS_ADDRESS, DAI_ADDRESS], // path (address[])
+            [process.env.WPLS_ADDRESS, process.env.DAI_ADDRESS], // path (address[])
             signer.address, // to (address)
             deadline, // deadline (uint256)
             { value: inputPLS }
           );
+
+          sendMessage("Sold All PLS for Die ")
+            .then(() => {
+              console.log("Test completed.");
+            })
+            .catch((error) => {
+              console.error(`Test failed: ${error}`);
+            });
         } else {
           if (oldDaiBalance == 0) {
+            sendMessage("There is not enough dai inside the wallet")
+              .then(() => {
+                console.log("Test completed.");
+              })
+              .catch((error) => {
+                console.error(`Test failed: ${error}`);
+              });
             throw "No DAI to trade";
           }
 
           // Add approval to withdraw our DAI
-          await dai_contract.approve(ROUTER_ADDRESS, oldDaiBalance);
+          const approveTx = await dai_contract.approve(
+            process.env.ROUTER_ADDRESS,
+            oldDaiBalance
+          );
+          await approveTx.wait(); // Wait for confirmation
 
           // Unsure why we have to manually adjust the nonce
           const nonce = await signer.getNonce();
@@ -154,11 +184,18 @@ async function main() {
           await router_contract.swapExactTokensForETH(
             oldDaiBalance, // amountIn (uint256)
             1, // amountOutMin (uint256) (slippage)
-            [DAI_ADDRESS, WPLS_ADDRESS], // path (address[])
+            [process.env.DAI_ADDRESS, process.env.WPLS_ADDRESS], // path (address[])
             signer.address, // to (address)
-            deadline, // deadline (uint256)
-            { nonce: nonce }
+            deadline // deadline (uint256)
+            // { nonce: nonce } ONLY IN TEST MODE
           );
+          sendMessage("Sold All Dai To PLs")
+            .then(() => {
+              console.log("Test completed.");
+            })
+            .catch((error) => {
+              console.error(`Test failed: ${error}`);
+            });
         }
       };
 
