@@ -1,14 +1,9 @@
 import { ethers } from "hardhat";
-import { sendMessage } from "../utils/sendMessage";
-import {
-  DAI_ADDRESS,
-  LIVE_RPC_URL,
-  LIVE_WALLET_KEY,
-  WPLS_ADDRESS,
-} from "./config";
+import { sendMessage } from "./sendMessage";
+import { addresses, LIVE_RPC_URL, LIVE_WALLET_KEY } from "../config/config";
 import { getBalance } from "./getTokenBlance";
-import wpls_ABI from "./wpls_ABI.json";
-import router_ABI from "./router_ABI.json";
+import wpls_ABI from "../abis/wpls_ABI.json";
+import router_ABI from "../abis/router_ABI.json";
 
 export const executeTrade = async (tradedContract: string) => {
   const provider = new ethers.JsonRpcProvider(LIVE_RPC_URL);
@@ -30,7 +25,7 @@ export const executeTrade = async (tradedContract: string) => {
   const TradedAsset_balance = await getBalance(tradedContract);
 
   // Store the initial balance of the other asset before trading
-  const oldOtherAssetBalance = await getBalance(WPLS_ADDRESS!);
+  const oldOtherAssetBalance = await getBalance(addresses.WPLS.TOKEN_ADDRESS);
 
   if (TradedAsset_balance.your_token_balance > 0) {
     console.log(`Trade ${TradedAsset_balance.token_symbol} to PLS`);
@@ -56,7 +51,7 @@ export const executeTrade = async (tradedContract: string) => {
     const tx = await router_contract.swapExactTokensForETH(
       TradedAsset_balance.your_token_balance,
       1,
-      [tradedContract, WPLS_ADDRESS],
+      [tradedContract, addresses.WPLS.TOKEN_ADDRESS],
       signer.address,
       deadline
     );
@@ -69,7 +64,7 @@ export const executeTrade = async (tradedContract: string) => {
 
     const tx2 = await router_contract.swapExactETHForTokens(
       1,
-      [WPLS_ADDRESS, tradedContract],
+      [addresses.WPLS.TOKEN_ADDRESS, tradedContract],
       signer.address,
       deadline,
       { value: inputPLS }

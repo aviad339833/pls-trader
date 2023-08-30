@@ -1,15 +1,15 @@
 import { ethers } from "hardhat";
-import pair_ABI from "./pair_ABI.json";
-import router_ABI from "./router_ABI.json";
-import wpls_ABI from "./wpls_ABI.json";
+import pair_ABI from "../abis/pair_ABI.json";
+import router_ABI from "../abis/router_ABI.json";
+import wpls_ABI from "../abis/wpls_ABI.json";
 import { setNonce } from "@nomicfoundation/hardhat-toolbox/network-helpers";
 import readline from "readline"; // Import readline module
 import { sendMessage } from "../utils/sendMessage";
-import { getBalance } from "./getTokenBlance";
-import { addresses } from "./config";
-import { gatherUserInputs } from "./userInputs";
-import { executeTrade } from "./takeAtrade";
-import { getRatio } from "./getRatio";
+import { getBalance } from "../utils/getTokenBlance";
+import { addresses } from "../config/config";
+import { gatherUserInputs } from "../utils/userInputs";
+import { executeTrade } from "../utils/takeAtrade";
+import { getRatio } from "../utils/getRatio";
 require("dotenv").config();
 
 async function main() {

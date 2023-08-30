@@ -1,7 +1,7 @@
 // userInputs.ts
 
 import readline from "readline";
-import { addresses } from "./config";
+import { addresses } from "../config/config";
 import { getBalance } from "./getTokenBlance";
 
 export interface UserInputs {

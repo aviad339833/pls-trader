@@ -1,6 +1,6 @@
 import { ethers } from "hardhat";
-import { AMPLIFIER, LIVE_RPC_URL, LIVE_WALLET_KEY } from "./config";
-import pair_ABI from "./pair_ABI.json";
+import { AMPLIFIER, LIVE_RPC_URL, LIVE_WALLET_KEY } from "../config/config";
+import pair_ABI from "../abis/pair_ABI.json";
 
 export const getRatio = async (pair_address: string) => {
   const provider = new ethers.JsonRpcProvider(LIVE_RPC_URL);

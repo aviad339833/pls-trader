@@ -1,6 +1,7 @@
 {
   "scripts": {
     "trade": "npx hardhat run scripts/trade.ts",
+    "getRatios": "npx hardhat run scripts/ratios.ts",
     "fork": "npx hardhat node --fork https://rpc.pulsechain.com --fork-block-number 18156443"
   },
   "devDependencies": {

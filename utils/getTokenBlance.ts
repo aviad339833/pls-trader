@@ -1,6 +1,6 @@
 import { ethers } from "hardhat";
-import { LIVE_RPC_URL, LIVE_WALLET_KEY } from "./config";
-import wpls_ABI from "./wpls_ABI.json";
+import { LIVE_RPC_URL, LIVE_WALLET_KEY } from "../config/config";
+import wpls_ABI from "../abis/wpls_ABI.json";
 
 const provider = new ethers.JsonRpcProvider(LIVE_RPC_URL);
 const signer = new ethers.Wallet(LIVE_WALLET_KEY!, provider);
