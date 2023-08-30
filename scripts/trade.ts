@@ -6,14 +6,21 @@ import { setNonce } from "@nomicfoundation/hardhat-toolbox/network-helpers";
 import readline from "readline"; // Import readline module
 import { sendMessage } from "../utils/sendMessage";
 import { getBalance } from "./getTokenBlance";
-import { DAI_ADDRESS, HEX_ADDRESS, PLSX_ADDRESS, WPLS_ADDRESS } from "./config";
+import { addresses } from "./config";
 import { gatherUserInputs } from "./userInputs";
 import { executeTrade } from "./takeAtrade";
+import { getRatio } from "./getRatio";
 require("dotenv").config();
 
 async function main() {
-  const trade = await executeTrade(DAI_ADDRESS!);
-  console.log(trade, "aviad");
+  // const trade = await executeTrade(DAI_ADDRESS!);
+  let sample = await getRatio(addresses.DAI.PAIR_ADDRESS);
+  console.log("where is my DAI?", sample);
+  sample = await getRatio(addresses.HEX.PAIR_ADDRESS);
+  console.log("where is my HEX?", sample);
+  sample = await getRatio(addresses.PLSX.PAIR_ADDRESS);
+  console.log("where is my PLSX?", sample);
+
   const { targetPrice, triggerAbove, tradePLStoDAIInput } =
     await gatherUserInputs();
 
@@ -66,21 +73,21 @@ async function main() {
     signer
   );
 
-  const getRatio = async () => {
-    try {
-      const reserves = await pair_contract.getReserves();
-      let ratio: BigInt;
+  // const getRatio = async () => {
+  //   try {
+  //     const reserves = await pair_contract.getReserves();
+  //     let ratio: BigInt;
 
-      ratio = (amplifier * reserves[1]) / reserves[0];
+  //     ratio = (amplifier * reserves[1]) / reserves[0];
 
-      return ratio;
-    } catch (err) {
-      console.error("Error fetching ratio:", err);
-    }
-  };
+  //     return ratio;
+  //   } catch (err) {
+  //     console.error("Error fetching ratio:", err);
+  //   }
+  // };
 
   const tradeIfRatio = async (shouldTradeUp: any) => {
-    const ratio = await getRatio();
+    const ratio = await getRatio(addresses.DAI.PAIR_ADDRESS);
     console.log(`Ratio: ${ratio}, targetRatio: ${targetRatio}`);
     console.log(`left to trade: ${Number(ratio) / Number(targetRatio)}`);
 

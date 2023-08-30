@@ -1,7 +1,7 @@
 // userInputs.ts
 
 import readline from "readline";
-import { DAI_ADDRESS, HEX_ADDRESS, PLSX_ADDRESS, WPLS_ADDRESS } from "./config";
+import { addresses } from "./config";
 import { getBalance } from "./getTokenBlance";
 
 export interface UserInputs {
