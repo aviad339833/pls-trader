@@ -5,43 +5,18 @@ import wpls_ABI from "./wpls_ABI.json";
 import { setNonce } from "@nomicfoundation/hardhat-toolbox/network-helpers";
 import readline from "readline"; // Import readline module
 import { sendMessage } from "../utils/sendMessage";
+import { getBalance } from "./getTokenBlance";
+import { DAI_ADDRESS, HEX_ADDRESS, PLSX_ADDRESS, WPLS_ADDRESS } from "./config";
+import { gatherUserInputs } from "./userInputs";
+import { executeTrade } from "./takeAtrade";
 require("dotenv").config();
 
-interface UserInputs {
-  targetPrice: number;
-  triggerAbove: boolean;
-  tradePLStoDAIInput: boolean;
-}
-
-async function gatherUserInputs(): Promise<UserInputs> {
-  return new Promise((resolve) => {
-    const rl = readline.createInterface({
-      input: process.stdin,
-      output: process.stdout,
-    });
-
-    let targetPrice: number, triggerAbove: boolean, tradePLStoDAIInput: boolean;
-
-    rl.question("Enter target price: ", (price) => {
-      targetPrice = parseFloat(price);
-      rl.question(
-        "Trigger a trade if price is above (true/false): ",
-        (above) => {
-          triggerAbove = above === "true";
-          rl.question("Trade PLS to DAI? (true/false): ", (tradePLS) => {
-            tradePLStoDAIInput = tradePLS === "true";
-            rl.close();
-            resolve({ targetPrice, triggerAbove, tradePLStoDAIInput });
-          });
-        }
-      );
-    });
-  });
-}
-
 async function main() {
+  const trade = await executeTrade(DAI_ADDRESS!);
+  console.log(trade, "aviad");
   const { targetPrice, triggerAbove, tradePLStoDAIInput } =
     await gatherUserInputs();
+
   // The three most important variables
   const targetRatioDecimalsPLStoDai = targetPrice;
   const tradePLStoDAI = tradePLStoDAIInput;
