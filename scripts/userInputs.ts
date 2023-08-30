@@ -11,11 +11,6 @@ export interface UserInputs {
 }
 
 export async function gatherUserInputs(): Promise<UserInputs> {
-  const balance_dai = await getBalance(DAI_ADDRESS!);
-  const balance_hex = await getBalance(HEX_ADDRESS!);
-  const balance_pls = await getBalance(WPLS_ADDRESS!);
-  const balance_plsx = await getBalance(PLSX_ADDRESS!);
-
   return new Promise((resolve) => {
     const rl = readline.createInterface({
       input: process.stdin,
