@@ -25,6 +25,7 @@ const tokenSettings = [
 async function checkAndExecuteTrade() {
   try {
     const ratios = await readLast3Items();
+    console.clear();
     console.log(ratios);
   } catch (error) {
     console.error("An error occurred:", error);
