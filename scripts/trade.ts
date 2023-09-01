@@ -24,17 +24,39 @@ function readJsonFromFile(filename: any) {
     return null;
   }
 }
+// ... (other imports and code above)
+
 async function checkAndExecuteTrade() {
   try {
     const ratios = await readLast3Items();
     const balances = await readJsonFromFile("balances.json");
     console.clear();
-    console.log(ratios);
+    console.log("Balances JSON:");
     console.log(balances);
+    console.log("Ratios Array:");
+    console.log(ratios);
+
+    // Log individual properties of balances
+    console.log("Individual Balances:");
+    for (const key in balances) {
+      console.log(`${key}: ${balances[key]}`);
+    }
+
+    // Log individual properties of highestPercentageDifferences
+    console.log("Highest Percentage Differences:");
+    for (const key in balances.highestPercentageDifferences) {
+      console.log(`${key}: ${balances.highestPercentageDifferences[key]}`);
+    }
+
+    // Log individual properties of lowestPercentageDifferences
+    console.log("Lowest Percentage Differences:");
+    for (const key in balances.lowestPercentageDifferences) {
+      console.log(`${key}: ${balances.lowestPercentageDifferences[key]}`);
+    }
   } catch (error) {
     console.error("An error occurred:", error);
   }
 }
 
 // Poll every 5 seconds (customize this)
-setInterval(checkAndExecuteTrade, 1000);
+setInterval(checkAndExecuteTrade, 1000); // Poll every 5 seconds
