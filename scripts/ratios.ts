@@ -1,66 +1,112 @@
 import fs from "fs";
+import sqlite3 from "sqlite3";
 import { getRatio } from "../utils/getRatio";
-
 import { getAllBalances } from "../utils/getAllBalances";
 import { addresses } from "../config/config";
 
-// To store historical ratios for calculating moving averages
+// Open the SQLite database connection
+const db = new sqlite3.Database("token_prices.db");
+// Create the token_prices table if it doesn't exist
+db.run(`
+  CREATE TABLE IF NOT EXISTS token_prices (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    token TEXT,
+    ratio TEXT,
+    ma_120 TEXT,
+    ma_120_ago TEXT,
+    timestamp TEXT
+  )
+`);
+
 const historicalRatios: Record<string, BigInt[]> = {};
-let runCounter = 0; // Initialize a counter for the number of runs
+let runCounter = 0;
+
+function calculateMovingAverage(values: any) {
+  const period = 120;
+  const valuesLength = values.length;
+
+  // If there are not enough values for the entire period, return null
+  // if (valuesLength < period * 2) {
+  //   return null;
+  // }
+
+  // Calculate the sum of the first 120 values
+  const sum = values
+    .slice(0, period)
+    .reduce((total: any, value: any) => total + value, 0n);
+
+  // Calculate the moving average for the entire period (including the first price)
+  return sum / BigInt(period);
+}
 
 async function updateRatios() {
-  const ratios: Record<string, BigInt | undefined> = {};
-  const balances = await getAllBalances();
+  try {
+    const ratios: Record<string, BigInt | undefined> = {};
 
-  for (const [key, value] of Object.entries(addresses)) {
-    // Skip processing if the token is WPLS
-    if (value.TOKEN_ADDRESS === "WPLS") {
-      continue;
+    for (const [key, value] of Object.entries(addresses)) {
+      if (key === "WPLS") {
+        continue;
+      }
+
+      const ratio: any = await getRatio(value.PAIR_ADDRESS);
+
+      if (!historicalRatios[key]) {
+        historicalRatios[key] = [];
+      }
+      if (ratio !== undefined) {
+        historicalRatios[key].push(ratio);
+      }
+
+      if (historicalRatios[key].length > 120) {
+        historicalRatios[key].shift();
+      }
+
+      ratios[key] = ratio;
     }
 
-    const ratio: any = await getRatio(value.PAIR_ADDRESS);
+    const timestamp = new Date().toISOString();
+    for (const [token, ratio] of Object.entries(ratios)) {
+      const movingAverage = calculateMovingAverage(historicalRatios[token]);
+      const movingAverage120Ago = calculateMovingAverage(
+        historicalRatios[token].slice(-240, -120)
+      );
 
-    // Update historical ratios for each address
-    if (!historicalRatios[key]) {
-      historicalRatios[key] = [];
-    }
-    if (ratio !== undefined) {
-      historicalRatios[key].push(ratio);
+      if (movingAverage !== null && movingAverage120Ago !== null) {
+        db.run(
+          `INSERT INTO token_prices (token, ratio, ma_120, ma_120_ago, timestamp) VALUES (?, ?, ?, ?, ?)`,
+          [
+            token,
+            ratio?.toString(),
+            movingAverage.toString(),
+            movingAverage120Ago.toString(),
+            timestamp,
+          ],
+          (error) => {
+            if (error) {
+              console.error("Error inserting data into the database:", error);
+            } else {
+              console.log("Inserted data into the database:");
+              console.log("Token:", token);
+              console.log("Ratio:", ratio?.toString());
+              console.log("Moving Average (120):", movingAverage.toString());
+              console.log(
+                "Moving Average (120 ago):",
+                movingAverage120Ago.toString()
+              );
+              console.log("Timestamp:", timestamp);
+            }
+          }
+        );
+      }
     }
 
-    // If more than 120 records, remove the oldest one
-    if (historicalRatios[key].length > 120) {
-      historicalRatios[key].shift();
-    }
+    console.log("Data inserted into the database.");
 
-    ratios[key] = ratio;
+    runCounter++;
+    console.log(`This program has run ${runCounter} times so far.`);
+  } catch (error) {
+    console.error("Error updating ratios:", error);
   }
-
-  // Clear console
-  console.clear();
-
-  // Write the ratios to console
-  console.log("Current Ratios:", ratios);
-  console.log("Current balances:", balances);
-  runCounter++; // Increment the run counter
-  console.log(`This program has run ${runCounter} times so far.`);
-
-  // Convert BigInts to strings before storing them
-  const ratiosForJSON = Object.fromEntries(
-    Object.entries(ratios).map(([key, value]) => [key, value?.toString()])
-  );
-  const balancesForJSON = Object.fromEntries(
-    Object.entries(balances).map(([key, value]) => [key, value?.toString()])
-  );
-
-  // Create an object to hold the current ratios data
-  const currentRatiosData = {
-    currentRatios: ratiosForJSON,
-    currentBalances: balancesForJSON,
-  };
-
-  // Write the current ratios data to a JSON file
-  fs.writeFileSync("ratios.json", JSON.stringify(currentRatiosData, null, 2));
 }
 
 // Run updateRatios every 5 seconds

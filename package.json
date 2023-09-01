@@ -1,5 +1,6 @@
 {
   "scripts": {
+    "showTable": "npx hardhat run sqlLIte/showSQLtable.ts",
     "trade": "npx hardhat run scripts/trade.ts",
     "reset": "npx hardhat run scripts/converAllToPls.ts",
     "getRatios": "npx hardhat run scripts/ratios.ts",
