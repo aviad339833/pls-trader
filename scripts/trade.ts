@@ -8,6 +8,7 @@ import { gatherUserInputs } from "../utils/userInputs";
 import { getRatio } from "../utils/getRatio";
 import { getRatiosFromJson } from "../utils/getRatiosFromJson";
 import { executeTrade } from "../utils/takeAtrade";
+import { readLast3Items } from "../sqlLIte/readLast3Items";
 
 require("dotenv").config();
 const tokenSettings = [
@@ -23,33 +24,12 @@ const tokenSettings = [
 // Check ratio and execute trade if conditions met
 async function checkAndExecuteTrade() {
   try {
-    const ratios = await getRatiosFromJson();
-
-    for (const tokenSetting of tokenSettings) {
-      const currentRatio = ratios[tokenSetting.token];
-      const { entry, trigger, stoploss, contract } = tokenSetting;
-
-      if (
-        (trigger === "above" && currentRatio >= entry) ||
-        (trigger === "below" && currentRatio <= entry)
-      ) {
-        // Calculate stop-loss price
-        const stoplossPrice = entry * (1 - stoploss);
-
-        // Check if currentRatio goes below stop-loss price
-        if (currentRatio <= stoplossPrice) {
-          console.log(
-            `${tokenSetting.token}: Triggered stop-loss, executing trade`
-          );
-          const tradeResult = await executeTrade(contract);
-          console.log("Trade result:", tradeResult);
-        }
-      }
-    }
+    const ratios = await readLast3Items();
+    console.log(ratios);
   } catch (error) {
     console.error("An error occurred:", error);
   }
 }
 
 // Poll every 5 seconds (customize this)
-setInterval(checkAndExecuteTrade, 500);
+setInterval(checkAndExecuteTrade, 1000);

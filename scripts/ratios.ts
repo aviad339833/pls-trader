@@ -12,16 +12,19 @@ db.run(`
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     token TEXT,
     ratio TEXT,
+    moving_average TEXT,
     timestamp TEXT
   )
 `);
 
-const historicalRatios: Record<string, BigInt[]> = {};
+const historicalRatios: Record<string, number[]> = {};
 let runCounter = 0;
 
 async function updateRatios() {
   try {
-    const ratios: Record<string, BigInt | undefined> = {};
+    const ratios: Record<string, number | undefined> = {};
+
+    const timestamp = new Date().toISOString(); // Define the timestamp here
 
     for (const [key, value] of Object.entries(addresses)) {
       if (key === "WPLS") {
@@ -34,7 +37,7 @@ async function updateRatios() {
         historicalRatios[key] = [];
       }
       if (ratio !== undefined) {
-        historicalRatios[key].push(ratio);
+        historicalRatios[key].push(Number(ratio)); // Convert ratio to number
       }
 
       if (historicalRatios[key].length > 120) {
@@ -42,20 +45,24 @@ async function updateRatios() {
       }
 
       ratios[key] = ratio;
-    }
 
-    const timestamp = new Date().toISOString();
-    for (const [token, ratio] of Object.entries(ratios)) {
+      // Calculate 120-day moving average
+      const movingAverage =
+        historicalRatios[key].length < 120
+          ? Number(ratio) // Convert ratio to number
+          : historicalRatios[key].reduce((sum, val) => sum + val, 0) / 120;
+
       db.run(
-        `INSERT INTO token_prices (token, ratio, timestamp) VALUES (?, ?, ?)`,
-        [token, ratio?.toString(), timestamp],
+        `INSERT INTO token_prices (token, ratio, moving_average, timestamp) VALUES (?, ?, ?, ?)`,
+        [key, ratio?.toString(), movingAverage?.toString(), timestamp],
         (error) => {
           if (error) {
             console.error("Error inserting data into the database:", error);
           } else {
             console.log("Inserted data into the database:");
-            console.log("Token:", token);
+            console.log("Token:", key);
             console.log("Ratio:", ratio?.toString());
+            console.log("Moving Average:", movingAverage?.toString());
             console.log("Timestamp:", timestamp);
           }
         }
