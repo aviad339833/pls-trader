@@ -11,22 +11,26 @@ import { executeTrade } from "../utils/takeAtrade";
 import { readLast3Items } from "../sqlLIte/readLast3Items";
 
 require("dotenv").config();
-const tokenSettings = [
-  {
-    token: "DAI",
-    entry: 0.00003789563719,
-    trigger: "above",
-    stoploss: 0.02,
-    contract: addresses.DAI.PAIR_ADDRESS,
-  },
-];
-
+const fs = require("fs");
 // Check ratio and execute trade if conditions met
+
+function readJsonFromFile(filename: any) {
+  try {
+    const jsonString = fs.readFileSync(filename, "utf8");
+    const jsonData = JSON.parse(jsonString);
+    return jsonData;
+  } catch (error) {
+    console.error(`Error reading or parsing JSON data from '${filename}`);
+    return null;
+  }
+}
 async function checkAndExecuteTrade() {
   try {
     const ratios = await readLast3Items();
+    const balances = await readJsonFromFile("balances.json");
     console.clear();
     console.log(ratios);
+    console.log(balances);
   } catch (error) {
     console.error("An error occurred:", error);
   }
