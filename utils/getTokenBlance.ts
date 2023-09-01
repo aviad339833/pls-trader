@@ -17,9 +17,5 @@ export async function getBalance(token_contract_address: string) {
   const decimals = await token_balance.decimals();
   const token_symbol = await token_balance.symbol(); // Fetching the token symbol
 
-  console.log(
-    `Your ${token_symbol} token balance is: ${your_token_balance.toString()} (DECIMALS) ${decimals}`
-  );
-
   return { decimals, token_symbol, your_token_balance };
 }

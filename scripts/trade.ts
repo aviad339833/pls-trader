@@ -10,21 +10,41 @@ import { getRatiosFromJson } from "../utils/getRatiosFromJson";
 import { executeTrade } from "../utils/takeAtrade";
 
 require("dotenv").config();
+const tokenSettings = [
+  {
+    token: "DAI",
+    entry: 0.00003789563719,
+    trigger: "above",
+    stoploss: 0.02,
+    contract: addresses.DAI.PAIR_ADDRESS,
+  },
+];
 
 // Check ratio and execute trade if conditions met
 async function checkAndExecuteTrade() {
   try {
     const ratios = await getRatiosFromJson();
 
-    // Your condition (customize this)
-    if (parseInt(ratios.DAI) > 400000) {
-      await executeTrade(addresses.DAI.TOKEN_ADDRESS);
-    }
-    if (BigInt(ratios.HEX) > BigInt("22330693934297169655070")) {
-      await executeTrade(addresses.HEX.TOKEN_ADDRESS);
-    }
-    if (parseInt(ratios.PLSX) > 2794000000) {
-      await executeTrade(addresses.PLSX.TOKEN_ADDRESS);
+    for (const tokenSetting of tokenSettings) {
+      const currentRatio = ratios[tokenSetting.token];
+      const { entry, trigger, stoploss, contract } = tokenSetting;
+
+      if (
+        (trigger === "above" && currentRatio >= entry) ||
+        (trigger === "below" && currentRatio <= entry)
+      ) {
+        // Calculate stop-loss price
+        const stoplossPrice = entry * (1 - stoploss);
+
+        // Check if currentRatio goes below stop-loss price
+        if (currentRatio <= stoplossPrice) {
+          console.log(
+            `${tokenSetting.token}: Triggered stop-loss, executing trade`
+          );
+          const tradeResult = await executeTrade(contract);
+          console.log("Trade result:", tradeResult);
+        }
+      }
     }
   } catch (error) {
     console.error("An error occurred:", error);
@@ -32,4 +52,4 @@ async function checkAndExecuteTrade() {
 }
 
 // Poll every 5 seconds (customize this)
-setInterval(checkAndExecuteTrade, 5000);
+setInterval(checkAndExecuteTrade, 500);

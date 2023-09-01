@@ -13,6 +13,3 @@ export function getRatiosFromJson() {
     return null;
   }
 }
-
-const ratios = getRatiosFromJson();
-console.log("Ratios from file:", ratios);
