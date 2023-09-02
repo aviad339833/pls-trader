@@ -15,13 +15,13 @@ export async function getAllBalances() {
   let balances: any = {};
 
   try {
-    const provider = new ethers.JsonRpcProvider(LIVE_RPC_URL);
+    const pls_balance = await getPLSWalletBalance();
+    balances["PLS"] = pls_balance;
 
     const tokensToCheck: TokenAddresses = {
       DAI: addresses.DAI,
       HEX: addresses.HEX,
       PLSX: addresses.PLSX,
-      WPLS: addresses.WPLS,
     };
 
     for (const tokenName in tokensToCheck) {
@@ -31,9 +31,6 @@ export async function getAllBalances() {
         balances[tokenName] = balance.your_token_balance;
       }
     }
-
-    const pls_balance = await getPLSWalletBalance();
-    balances["PLS"] = pls_balance;
   } catch (error) {
     console.error("An error occurred:", error);
   }

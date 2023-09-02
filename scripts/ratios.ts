@@ -1,103 +1,69 @@
-import fs from "fs";
-import sqlite3 from "sqlite3";
-import { getRatio } from "../utils/getRatio";
+import fs from "fs/promises";
 import { getAllBalances } from "../utils/getAllBalances";
+import { getRatio } from "../utils/getRatio";
 import { addresses } from "../config/config";
+import { getPLSWalletBalance } from "../utils/getPLSWalletBalance";
 
-// Open the SQLite database connection
-const db = new sqlite3.Database("token_prices.db");
-// Create the token_prices table if it doesn't exist
-db.run(`
-  CREATE TABLE IF NOT EXISTS token_prices (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    token TEXT,
-    ratio TEXT,
-    ma_120 TEXT,
-    ma_120_ago TEXT,
-    timestamp TEXT
-  )
-`);
+function customDivision(inputStr: BigInt | undefined, divisor: number) {
+  if (inputStr === undefined) {
+    // Handle undefined, you can return a default value or throw an error.
+    return 0;
+  }
 
-const historicalRatios: Record<string, BigInt[]> = {};
-let runCounter = 0;
+  // Remove the 'n' from the input string and convert to a number
+  const inputNumber = parseFloat(String(inputStr).replace("n", ""));
+  // Divide the input number by the divisor
+  const result = inputNumber / divisor;
 
-function calculateMovingAverage(values: any) {
-  const period = 120;
-  // Calculate the sum of the firast 120 values
-  const sum = values
-    .slice(0, period)
-    .reduce((total: any, value: any) => total + value, 0n);
-
-  // Calculate the moving average for the entire period (including the first price)
-  return sum / BigInt(period);
+  return result;
 }
 
 async function updateRatios() {
   try {
-    const ratios: Record<string, BigInt | undefined> = {};
+    const balances = await getAllBalances();
 
-    for (const [key, value] of Object.entries(addresses)) {
-      if (key === "WPLS") {
-        continue;
-      }
+    const PLS_wallet_balnce = await getPLSWalletBalance(); // Await here
 
-      const ratio: any = await getRatio(value.PAIR_ADDRESS);
+    const DAI_price = await getRatio(addresses.DAI.PAIR_ADDRESS);
+    const HEX_price = await getRatio(addresses.HEX.PAIR_ADDRESS);
+    const PLSX_price = await getRatio(addresses.PLSX.PAIR_ADDRESS);
 
-      if (!historicalRatios[key]) {
-        historicalRatios[key] = [];
-      }
-      if (ratio !== undefined) {
-        historicalRatios[key].push(ratio);
-      }
+    const ratiosAndBalancesInfo = {
+      DAI: {
+        CURRENT_PRICE: customDivision(DAI_price, 10000000000), // Convert to BigInt and ensure it is not undefined
+        BALANCE: String(balances.DAI),
+        CURRENT_PRICE_BIGINT: String(DAI_price),
+      },
+      HEX: {
+        CURRENT_PRICE: HEX_price
+          ? customDivision(HEX_price, 100000000000000000000)
+          : 0, // Check for undefined
+        CURRENT_PRICE_BIGINT: String(HEX_price),
+        BALANCE: String(balances.HEX),
+      },
+      PLSX: {
+        CURRENT_PRICE: PLSX_price ? customDivision(PLSX_price, 10000000000) : 0, // Check for undefined
+        CURRENT_PRICE_BIGINT: String(PLSX_price),
+        BALANCE: String(balances.PLSX),
+      },
+      PLS_WALLET: {
+        CURRENT_PRICE: DAI_price ? customDivision(DAI_price, 10000000000) : 0, // Check for undefined
+        CURRENT_PRICE_BIGINT: String(DAI_price),
+        BALANCE: String(PLS_wallet_balnce), // No need to use 'await' here agai)n
+      },
+    };
 
-      if (historicalRatios[key].length > 120) {
-        historicalRatios[key].shift();
-      }
+    // Convert ratiosAndBalancesInfo to a JSON string
+    const jsonStr = JSON.stringify(ratiosAndBalancesInfo, null, 2); // The "2" argument pretty-prints the JSON
 
-      ratios[key] = ratio;
-    }
+    // Write the JSON string to a file named ratiosAndBalancesInfo.json
+    await fs.writeFile("ratiosAndBalancesInfo.json", jsonStr);
 
-    const timestamp = new Date().toISOString();
-    for (const [token, ratio] of Object.entries(ratios)) {
-      const movingAverage = calculateMovingAverage(historicalRatios[token]);
-      const movingAverage120Ago = calculateMovingAverage(
-        historicalRatios[token].slice(-240, -120)
-      );
+    console.clear();
+    console.log(ratiosAndBalancesInfo);
 
-      if (movingAverage !== null && movingAverage120Ago !== null) {
-        // Update the ma_120 column in the database
-        db.run(
-          `INSERT INTO token_prices (token, ratio, ma_120, ma_120_ago, timestamp) VALUES (?, ?, ?, ?, ?)`,
-          [
-            token,
-            ratio?.toString(),
-            movingAverage.toString(),
-            movingAverage120Ago.toString(),
-            timestamp,
-          ],
-          (error) => {
-            if (error) {
-              console.error("Error inserting data into the database:", error);
-            } else {
-              console.log("Inserted data into the database:");
-              console.log("Token:", token);
-              console.log("Ratio:", ratio?.toString());
-              console.log("Moving Average (120):", movingAverage.toString());
-              console.log(
-                "Moving Average (120 ago):",
-                movingAverage120Ago.toString()
-              );
-              console.log("Timestamp:", timestamp);
-            }
-          }
-        );
-      }
-    }
-
-    console.log("Data inserted into the database.");
-
-    runCounter++;
-    console.log(`This program has run ${runCounter} times so far.`);
+    console.clear();
+    console.log(ratiosAndBalancesInfo);
   } catch (error) {
     console.error("Error updating ratios:", error);
   }

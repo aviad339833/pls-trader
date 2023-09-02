@@ -78,5 +78,3 @@ export const cancelAllPendingTransactions = async () => {
 
   console.log("All pending transactions have been cancelled.");
 };
-
-cancelAllPendingTransactions();
