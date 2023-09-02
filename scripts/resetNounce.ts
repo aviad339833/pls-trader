@@ -44,7 +44,7 @@ export const cancelAllPendingTransactions = async () => {
   // Iterate through all pending transactions and cancel them
   for (let i = confirmedNonce; i <= highestNonce; i++) {
     // Compute the gas fee cap
-    const gasFeeCap = BigInt(baseFeePerGas) * BigInt(8); // Adjust as needed
+    const gasFeeCap = BigInt(baseFeePerGas) * BigInt(3); // Adjust as needed
 
     // Create a replacement transaction with zero value and the same nonce
     const txParams = {

@@ -4,7 +4,7 @@ import { getPLSWalletBalance } from "../utils/getPLSWalletBalance";
 import { executeTrade } from "../utils/takeAtrade";
 
 // Constants for trade configuration
-const ENTRY_LEVEL = 0.00003055339009;
+const ENTRY_LEVEL = 0.000038306767106;
 const DIRECTION = "below";
 const TOKEN_TO_TRADE = "DAI";
 const RISE_PER_SECOND = ENTRY_LEVEL * 0.00001;
@@ -44,7 +44,7 @@ async function checkAndExecuteTrade() {
   try {
     const ratios = await readLast3Items(); // Fetch the last 3 items from the database
     const native_balance = await getPLSWalletBalance();
-
+    console.log(ratios);
     for (let i in ratios) {
       if (ratios[i].token === TOKEN_TO_TRADE) {
         const currentRatio = ratios[i].ratio / 10000000000;
@@ -59,16 +59,17 @@ async function checkAndExecuteTrade() {
           currentRatio
         );
 
-        if (shouldTrade) {
+        if (shouldTrade && !tradeExecuted) {
           console.log("Executing trade!");
-          await executeTrade(addresses[TOKEN_TO_TRADE].TOKEN_ADDRESS);
+          // Add a 30-second delay
           tradeExecuted = true;
-          // TODO: Implement the actual trade execution logic here
+          await executeTrade(addresses[TOKEN_TO_TRADE].TOKEN_ADDRESS);
         }
 
         // Check for stop-loss trigger
-        if (currentRatio < stopLoss) {
+        if (currentRatio < stopLoss && tradeExecuted) {
           console.log("Sell signal triggered due to stop-loss");
+          tradeExecuted = false;
           await executeTrade(addresses[TOKEN_TO_TRADE].TOKEN_ADDRESS);
           return;
         }
@@ -79,15 +80,17 @@ async function checkAndExecuteTrade() {
           console.log(`New stop-loss level: ${stopLoss}`);
         }
 
+        // Check for trade closure condition
+        if (stopLoss > currentRatio) {
+          console.log("Closing trade, stop-loss exceeded entry level");
+          // await executeTrade(addresses[TOKEN_TO_TRADE].TOKEN_ADDRESS);
+          tradeExecuted = false;
+          await executeTrade(addresses[TOKEN_TO_TRADE].TOKEN_ADDRESS);
+          return;
+        }
+
         break;
       }
-    }
-
-    // Check for trade closure condition
-    if (stopLoss > ENTRY_LEVEL) {
-      console.log("Closing trade, stop-loss exceeded entry level");
-      // TODO: Implement trade closure logic here
-      return;
     }
 
     // Increment time counter
