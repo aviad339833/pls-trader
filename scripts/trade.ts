@@ -1,103 +1,101 @@
-import fs from "fs";
+import { addresses } from "../config/config";
 import { readLast3Items } from "../sqlLIte/readLast3Items";
-// Import other necessary modules here
+import { getPLSWalletBalance } from "../utils/getPLSWalletBalance";
+import { executeTrade } from "../utils/takeAtrade";
 
-type Balances = {
-  [key: string]:
-    | number
-    | {
-        highestPercentageDifferences: number;
-        lowestPercentageDifferences: number;
-      };
-};
+// Constants for trade configuration
+const ENTRY_LEVEL = 0.00003055339009;
+const DIRECTION = "below";
+const TOKEN_TO_TRADE = "DAI";
+const RISE_PER_SECOND = ENTRY_LEVEL * 0.00001;
 
-function readJsonFromFile(filename: string): Balances | null {
-  try {
-    const jsonString = fs.readFileSync(filename, "utf8");
-    const jsonData = JSON.parse(jsonString);
-    return jsonData;
-  } catch (error) {
-    console.error(`Error reading or parsing JSON data from ${filename}`);
-    return null;
+// Initial settings
+let stopLoss = ENTRY_LEVEL * 0.99; // Stop-loss set at 1% below entry level
+let timeElapsed = 0; // Time counter in seconds
+let tradeExecuted = false; // Flag to track if trade has been executed
+
+export type Direction = "above" | "below";
+
+export function shouldExecuteTrade(
+  entryTrigger: number,
+  direction: Direction,
+  currentRatio: number
+): boolean {
+  const logAbove = "Take a trade!! currentRatio is above entryTrigger";
+  const logBelow = "Take a trade!! currentRatio is below entryTrigger";
+
+  if (direction === "above" && currentRatio > entryTrigger) {
+    console.log(logAbove);
+    return true;
+  } else if (direction === "below" && currentRatio < entryTrigger) {
+    console.log(logBelow);
+    return true;
   }
-}
 
-let flagOpposite = false; // Add this flag to switch the behavior
-const calculateTrendLine = (entryLevel: number, slopeDegree: number) => {
-  const slope = Math.tan(
-    (flagOpposite ? -slopeDegree : slopeDegree) * (Math.PI / 180)
+  console.log(
+    `${
+      entryTrigger / currentRatio
+    } currentRatio is still above  entryTrigger StopLose: ${stopLoss}`
   );
-  return (time: number) => entryLevel + slope * time;
-};
-
-let time = 0;
-const entryLevel = 0.0000374;
-const slopeDegree = 80; // Changed to 50 degrees as per your requirement
-const trendLineFunction = calculateTrendLine(entryLevel, slopeDegree);
-let stopLossLevel = entryLevel * (1 - 0.5 / 100); // Initial stop loss level
-const targetToken = "DAI"; // Token to target
+  return false;
+}
 
 async function checkAndExecuteTrade() {
   try {
-    const ratios = await readLast3Items(); // Implement the actual function
-    const balances: Balances | null = readJsonFromFile("balances.json");
+    const ratios = await readLast3Items(); // Fetch the last 3 items from the database
+    const native_balance = await getPLSWalletBalance();
 
-    if (!balances) return;
+    for (let i in ratios) {
+      if (ratios[i].token === TOKEN_TO_TRADE) {
+        const currentRatio = ratios[i].ratio / 10000000000;
 
-    console.clear();
+        console.clear();
+        console.log(TOKEN_TO_TRADE, currentRatio, currentRatio / stopLoss);
+        console.log(native_balance, "native_balance");
 
-    console.log(`=== Current Time: ${new Date().toLocaleTimeString()} ===`); // Added line
-
-    console.log(`=== Trend Line Info ===`);
-    console.log(
-      `Trend Line Status: ${flagOpposite ? "Going Down" : "Going Up"}`
-    );
-    console.log(`Trend Line Degree: ${slopeDegree} degrees`);
-
-    console.log(`Current Stop Loss Level: ${stopLossLevel.toFixed(8)}`);
-
-    console.log("\n=== Account Balances ===");
-    if (balances[targetToken]) {
-      console.log(
-        `${targetToken}: ${balances[targetToken]} (Token: ${targetToken})`
-      );
-    }
-
-    console.log("\n=== Ratios ===");
-    for (const ratio of ratios) {
-      if (ratio.token !== targetToken) continue;
-
-      const currentRatio = ratio.ratio;
-      const trendLineValue = trendLineFunction(time);
-      const distancePercentage =
-        ((trendLineValue - currentRatio) / trendLineValue) * 100;
-
-      const isBelowTrendLine = flagOpposite
-        ? currentRatio > trendLineValue
-        : currentRatio < trendLineValue;
-      const isBelowStopLoss = currentRatio < stopLossLevel;
-
-      console.log(`Token: ${ratio.token}, Ratio: ${currentRatio}`);
-
-      if (isBelowTrendLine || isBelowStopLoss) {
-        console.log(
-          `Ratio ${
-            flagOpposite ? "broke above" : "broke below"
-          } the trend line or hit the stop loss.`
+        const shouldTrade = shouldExecuteTrade(
+          ENTRY_LEVEL,
+          DIRECTION,
+          currentRatio
         );
-        // Adjust stop loss level
-        stopLossLevel = currentRatio * (1 - 0.5 / 100);
-      } else {
-        console.log(`trendLineValue`, trendLineValue);
-        console.log(`Did not break the trend line yet.`);
+
+        if (shouldTrade) {
+          console.log("Executing trade!");
+          await executeTrade(addresses[TOKEN_TO_TRADE].TOKEN_ADDRESS);
+          tradeExecuted = true;
+          // TODO: Implement the actual trade execution logic here
+        }
+
+        // Check for stop-loss trigger
+        if (currentRatio < stopLoss) {
+          console.log("Sell signal triggered due to stop-loss");
+          await executeTrade(addresses[TOKEN_TO_TRADE].TOKEN_ADDRESS);
+          return;
+        }
+
+        // Only update stop-loss if a trade has been executed
+        if (tradeExecuted) {
+          stopLoss += RISE_PER_SECOND;
+          console.log(`New stop-loss level: ${stopLoss}`);
+        }
+
+        break;
       }
     }
 
-    time++;
+    // Check for trade closure condition
+    if (stopLoss > ENTRY_LEVEL) {
+      console.log("Closing trade, stop-loss exceeded entry level");
+      // TODO: Implement trade closure logic here
+      return;
+    }
+
+    // Increment time counter
+    timeElapsed++;
   } catch (error) {
     console.error("An error occurred:", error);
   }
 }
 
-// Poll every 1 second (customize this)
+// Poll every 1 second
 setInterval(checkAndExecuteTrade, 1000);

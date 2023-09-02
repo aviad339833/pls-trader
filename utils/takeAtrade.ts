@@ -46,6 +46,7 @@ export const executeTrade = async (tradedContract: string) => {
       process.env.ROUTER_ADDRESS,
       TradedAsset_balance.your_token_balance
     );
+
     await approveTx.wait();
 
     const tx = await router_contract.swapExactTokensForETH(
