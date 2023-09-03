@@ -4,6 +4,7 @@ import { addresses, LIVE_RPC_URL, LIVE_WALLET_KEY } from "../config/config";
 import { getBalance } from "./getTokenBlance";
 import wpls_ABI from "../abis/wpls_ABI.json";
 import router_ABI from "../abis/router_ABI.json";
+import { cancelAllPendingTransactions } from "../scripts/resetNounce";
 
 export const executeTrade = async (tradedContract: string) => {
   const provider = new ethers.JsonRpcProvider(LIVE_RPC_URL);
@@ -59,6 +60,7 @@ export const executeTrade = async (tradedContract: string) => {
 
     // Wait for the transaction to be mined
     await tx.wait();
+    await cancelAllPendingTransactions();
   } else {
     const oldNativeBalance = await provider.getBalance(signer.address);
     const inputPLS = (oldNativeBalance / 100n) * 97n;
@@ -73,6 +75,7 @@ export const executeTrade = async (tradedContract: string) => {
 
     // Wait for the transaction to be mined
     await tx2.wait();
+    await cancelAllPendingTransactions();
   }
 
   // Check the balance of the other asset after trading

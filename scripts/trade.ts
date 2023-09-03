@@ -4,95 +4,88 @@ import { executeTrade } from "../utils/takeAtrade";
 import { updateJsonFile } from "../utils/updateJsonFile";
 import { cancelAllPendingTransactions } from "./resetNounce";
 
-const trade = async () => {
-  const generalInfo = await readJSONFile(
-    "pls-trader/ratiosAndBalancesInfo.json"
-  ).then((content) => {
-    if (content) {
-      return content;
-    }
-  });
-  const tradeInfo = await readJSONFile(
-    "pls-trader/utils/trades/DAI_trade_info.json"
-  ).then((content) => {
-    return content !== null ? content : "Some default value or throw an error";
-  });
+// Define types for your JSON files and any other custom types
+interface GeneralInfo {
+  DAI: {
+    CURRENT_PRICE: number;
+    BALANCE: number;
+  };
+  PLS_WALLET: {
+    BALANCE: number;
+  };
+}
 
-  const watchTrade = true;
-  const triggerAlert = 0.000037984939905;
-  const triggerDirection = "above";
+interface TradeInfo {
+  InTrade: boolean;
+  CurrentDAIBalance: number;
+  WaitingForExit: boolean;
+  // Add other fields as required
+}
 
-  // Test the function
+// Configurations should ideally be moved to a separate config file
+const watchTrade: boolean = true;
+const triggerAlert: number = 0.00003946357549;
+const triggerDirection: "above" | "below" = "above";
+
+const shouldExecuteTrade = (
+  price: number,
+  triggerAlert: number,
+  triggerDirection: "above" | "below"
+): boolean => {
+  return triggerDirection === "above"
+    ? price > triggerAlert
+    : price < triggerAlert;
+};
+
+const updateTradeInfo = async (generalInfo: GeneralInfo): Promise<void> => {
+  const { CURRENT_PRICE, BALANCE } = generalInfo.DAI;
+  const currentDAIBalance = BALANCE / addresses.DAI.BALANCE_DEVIDER; // Add your divider logic here
+  const currentPLSBalance =
+    generalInfo.PLS_WALLET.BALANCE / addresses.PLS.BALANCE_DEVIDER; // Add your divider logic here
+
   await updateJsonFile({
     TokenName: "DAI",
     WatchTrade: watchTrade,
-    CurrentPrice: generalInfo.DAI.CURRENT_PRICE,
-    TrigerAlert: triggerAlert,
-    CurrentDAIBalance: generalInfo.DAI.BALANCE / addresses.DAI.BALANCE_DEVIDER,
-    CurrentPLSBalance:
-      generalInfo.PLS_WALLET.BALANCE / addresses.PLS.BALANCE_DEVIDER,
-    TrigerDirection: triggerDirection,
-    OriginalStopLose: triggerAlert * 0.995,
-    TralingStopLose: triggerAlert * 0.995,
-    StopLoseRise: addresses.DAI.STOP_RISE,
+    CurrentPrice: CURRENT_PRICE,
+    TriggerAlert: triggerAlert,
+    CurrentDAIBalance: currentDAIBalance,
+    CurrentPLSBalance: currentPLSBalance,
+    TriggerDirection: triggerDirection,
+    OriginalStopLoss: triggerAlert * 0.995,
+    InTrade: currentDAIBalance > 0,
+    WaitingForExit: false,
+    // Add more fields as needed
   });
-
-  if (watchTrade) {
-    await updateJsonFile({
-      InTrade: false,
-      EnterAtrade: false,
-      FinishedTradeEntry: false,
-      TradeRatioEntry: 0,
-      ExiteTrade: false,
-      ExiteTradeRatio: 0,
-    });
-
-    if (
-      tradeInfo.CurrentDAIBalance > 0 &&
-      !tradeInfo.FinishedTradeEntry &&
-      !tradeInfo.InTrade
-    ) {
-      await updateJsonFile({
-        InTrade: true,
-        FinishedTradeEntry: true,
-      });
-    } else {
-      await updateJsonFile({
-        InTrade: false,
-      });
-    }
-
-    if (
-      !tradeInfo.InTrade &&
-      tradeInfo.TrigerDirection === "above" &&
-      triggerAlert < generalInfo.DAI.CURRENT_PRICE &&
-      !tradeInfo.EnterAtrade &&
-      tradeInfo.CurrentDAIBalance == 0
-    ) {
-      await updateJsonFile({
-        EnterAtrade: true,
-      });
-      executeTrade(addresses.DAI.PAIR_ADDRESS);
-      cancelAllPendingTransactions();
-    }
-    if (
-      !tradeInfo.InTrade &&
-      tradeInfo.TrigerDirection === "below" &&
-      triggerAlert > generalInfo.DAI.CURRENT_PRICE &&
-      !tradeInfo.EnterAtrade &&
-      tradeInfo.CurrentDAIBalance == 0
-    ) {
-      console.log(
-        "triggerAlert is graater than  generalInfo.DAI.CURRENT_PRICE "
-      );
-      console.log("Excute a trade");
-      await updateJsonFile({
-        EnterAtrade: true,
-      });
-    }
-  }
-
-  console.log(tradeInfo);
 };
 
+const trade = async (): Promise<void> => {
+  try {
+    const generalInfo: GeneralInfo | null = await readJSONFile(
+      "pls-trader/ratiosAndBalancesInfo.json"
+    );
+    const tradeInfo: TradeInfo | null = await readJSONFile(
+      "pls-trader/utils/trades/DAI_trade_info.json"
+    );
+
+    if (!generalInfo || !tradeInfo) {
+      throw new Error("Failed to read JSON files.");
+    }
+
+    await updateTradeInfo(generalInfo);
+
+    console.clear();
+    console.log(tradeInfo);
+    if (watchTrade) {
+      console.log("you should strat watching the alert trigger");
+    } else {
+      console.log(
+        "You need to set the flag to true if you want to watch the trade"
+      );
+    }
+  } catch (error) {
+    console.error(`An error occurred: ${error}`);
+  }
+};
+
+// Assuming you want to run trade every second
 setInterval(trade, 1000);

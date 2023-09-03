@@ -8,8 +8,6 @@ export async function readJSONFile(relativePath: string): Promise<any> {
     const projectRoot = path.resolve(__dirname, "..", "..");
     const fullPath = path.join(projectRoot, relativePath);
 
-    console.log(`Reading JSON file from: ${fullPath}`);
-
     const fileContent = await fs.readFile(fullPath, "utf8");
     const parsedJSON = JSON.parse(fileContent);
 
