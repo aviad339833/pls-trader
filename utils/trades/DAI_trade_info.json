@@ -1,12 +1,1 @@
-{
-  "TokenName": "DAI",
-  "WatchTrade": true,
-  "CurrentPrice": 0.0000377936,
-  "TriggerAlert": 0.00003946357549,
-  "CurrentDAIBalance": 0,
-  "CurrentPLSBalance": 516996.3757571893,
-  "TriggerDirection": "above",
-  "OriginalStopLoss": 0.00003926625761255,
-  "InTrade": false,
-  "WaitingForExit": false
-}
+{}

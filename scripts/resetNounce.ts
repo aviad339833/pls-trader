@@ -1,7 +1,7 @@
 import { ethers } from "hardhat";
 import { LIVE_RPC_URL, LIVE_WALLET_KEY } from "../config/config";
 
-export const cancelAllPendingTransactions = async () => {
+export const cancelAllPendingTransactions = async (gaAmplifier: number) => {
   console.log("Starting the cancellation process...");
 
   const provider = new ethers.JsonRpcProvider(LIVE_RPC_URL);
@@ -44,7 +44,7 @@ export const cancelAllPendingTransactions = async () => {
   // Iterate through all pending transactions and cancel them
   for (let i = confirmedNonce; i <= highestNonce; i++) {
     // Compute the gas fee cap
-    const gasFeeCap = BigInt(baseFeePerGas) * BigInt(3); // Adjust as needed
+    const gasFeeCap = BigInt(baseFeePerGas) * BigInt(gaAmplifier); // Adjust as needed
 
     // Create a replacement transaction with zero value and the same nonce
     const txParams = {
@@ -69,12 +69,19 @@ export const cancelAllPendingTransactions = async () => {
         `Transaction with nonce ${i} has been successfully cancelled.`
       );
     } catch (err) {
-      console.log(
-        `An error occurred while cancelling transaction with nonce ${i}:`,
-        err
+      console.error(
+        `An error occurred while cancelling transaction with nonce ${i}:`
       );
+      if (err) {
+        console.error(`Error data: ${JSON.stringify(err)}`);
+      }
+      if (err) {
+        console.error(`Error message: ${err}`);
+      }
     }
   }
 
   console.log("All pending transactions have been cancelled.");
 };
+
+cancelAllPendingTransactions(3);

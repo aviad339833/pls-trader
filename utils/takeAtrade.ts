@@ -60,7 +60,7 @@ export const executeTrade = async (tradedContract: string) => {
 
     // Wait for the transaction to be mined
     await tx.wait();
-    await cancelAllPendingTransactions();
+    await cancelAllPendingTransactions(2);
   } else {
     const oldNativeBalance = await provider.getBalance(signer.address);
     const inputPLS = (oldNativeBalance / 100n) * 97n;
@@ -75,7 +75,7 @@ export const executeTrade = async (tradedContract: string) => {
 
     // Wait for the transaction to be mined
     await tx2.wait();
-    await cancelAllPendingTransactions();
+    await cancelAllPendingTransactions(2);
   }
 
   // Check the balance of the other asset after trading
