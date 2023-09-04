@@ -19,6 +19,7 @@ const triggerDirection: Direction = "above";
 const stopLosePrec: number = 0.99;
 const TradedToken: string = "DAI";
 let previousBalance: string = "0"; // Store the previous balance of TradedToken
+let realStopLose: number;
 
 let currentBalanceAtEntry: string;
 let currentRatioAtEntry: number;
@@ -117,21 +118,28 @@ const trade = async (): Promise<void> => {
       case TradeState.TRADE_COMPLETED:
         console.log("Transaction ended successfully!");
 
-        let realStopLose: number = currentRatioAtEntrySuccess * stopLosePrec;
+        realStopLose = currentRatioAtEntrySuccess * stopLosePrec;
+        currentState = TradeState.TRADE_WATCH;
+        break;
+
+      case TradeState.TRADE_WATCH:
+        console.log("Monitoring trade...");
+        console.log(
+          `Current Price: ${tradedAssetPrice}, Stop Rise Value: ${addresses.DAI.STOP_RISE}`
+        );
+
         if (tradedAssetPrice < realStopLose) {
-          console.log("Price below stop loss! Preparing to exit trade...");
+          console.log("Price dropped below stop loss! Exiting trade...");
           currentState = TradeState.TRADE_EXIT;
         } else if (tradedAssetPrice > realStopLose + addresses.DAI.STOP_RISE) {
           realStopLose += addresses.DAI.STOP_RISE;
           console.log(`Raised stop loss to: ${realStopLose}`);
-        } else {
-          currentState = TradeState.TRADE_WATCH;
         }
         break;
 
       case TradeState.TRADE_WATCH:
         console.log("Monitoring trade...");
-        realStopLose = currentRatioAtEntrySuccess * stopLosePrec;
+
         if (tradedAssetPrice < realStopLose) {
           console.log("Price dropped below stop loss! Exiting trade...");
           currentState = TradeState.TRADE_EXIT;
