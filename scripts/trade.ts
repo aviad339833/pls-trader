@@ -1,24 +1,14 @@
 import { addresses } from "../config/config";
+import { Direction, TradeState } from "../config/types";
 import { getCurrentDateTime } from "../utils/getTime";
 import { describeDifference } from "../utils/percentageDifference";
 import { readJSONFile } from "../utils/readJSONFile";
 import { executeTrade } from "../utils/takeAtrade";
+import { shouldTriggerTrade } from "../utils/trades/tradeTriggers";
 import { cancelAllPendingTransactions } from "./resetNounce";
 
-type Direction = "above" | "below";
-
-enum TradeState {
-  ALERT_MODE,
-  EXECUTE_TRADE,
-  WAIT_FOR_COMPLETION,
-  TRADE_COMPLETED,
-  TRADE_WATCH,
-  TRADE_EXIT,
-  EXIT_COMPLETED,
-}
-
 const triggerAlert: number = 0.000037384629594;
-const triggerDirection: Direction = "above";
+const triggerDirection: Direction = "below";
 const stopLosePrec: number = 0.99;
 const TradedToken: string = "DAI";
 let previousBalance: string = "0"; // Store the previous balance of TradedToken
@@ -30,20 +20,6 @@ let currentBalanceAtEntrySuccess: string;
 let currentRatioAtEntrySuccess: number;
 
 let currentState: TradeState = TradeState.ALERT_MODE;
-
-const shouldTriggerTrade = (
-  triggerAlert: number,
-  triggerDirection: Direction,
-  tradedAssetPrice: number
-): boolean => {
-  if (
-    (triggerAlert < tradedAssetPrice && triggerDirection === "above") ||
-    (triggerAlert > tradedAssetPrice && triggerDirection === "below")
-  ) {
-    return true;
-  }
-  return false;
-};
 
 const trade = async (): Promise<void> => {
   try {
@@ -99,9 +75,6 @@ const trade = async (): Promise<void> => {
 
       case TradeState.EXECUTE_TRADE:
         executeTrade(addresses.DAI.TOKEN_ADDRESS);
-
-        // Simulate the trade logic
-
         currentState = TradeState.WAIT_FOR_COMPLETION;
         break;
 
@@ -132,15 +105,15 @@ const trade = async (): Promise<void> => {
         break;
 
       case TradeState.TRADE_COMPLETED:
+        console.clear();
         console.log("Transaction ended successfully!");
-        // await new Promise((res) => setTimeout(res, 5000));
-
         realStopLose = currentRatioAtEntrySuccess * stopLosePrec;
         currentState = TradeState.TRADE_WATCH;
 
         break;
 
       case TradeState.TRADE_WATCH:
+        console.clear();
         console.log("Monitoring trade...");
         console.log(
           `Current Price: ${tradedAssetPrice}, Stop Rise Value: ${addresses.DAI.STOP_RISE}`
@@ -153,9 +126,11 @@ const trade = async (): Promise<void> => {
           realStopLose += addresses.DAI.STOP_RISE;
           console.log(`Raised stop loss to: ${realStopLose}`);
         }
+
         break;
 
       case TradeState.TRADE_WATCH:
+        console.clear();
         console.log("Monitoring trade...");
 
         if (tradedAssetPrice < realStopLose) {
