@@ -1,6 +1,9 @@
 import { addresses } from "../config/config";
+import { getCurrentDateTime } from "../utils/getTime";
+import { describeDifference } from "../utils/percentageDifference";
 import { readJSONFile } from "../utils/readJSONFile";
 import { executeTrade } from "../utils/takeAtrade";
+import { cancelAllPendingTransactions } from "./resetNounce";
 
 type Direction = "above" | "below";
 
@@ -14,7 +17,7 @@ enum TradeState {
   EXIT_COMPLETED,
 }
 
-const triggerAlert: number = 0.000038063323354;
+const triggerAlert: number = 0.000037384629594;
 const triggerDirection: Direction = "above";
 const stopLosePrec: number = 0.99;
 const TradedToken: string = "DAI";
@@ -81,15 +84,23 @@ const trade = async (): Promise<void> => {
           currentBalanceAtEntry = currentBalance;
           currentRatioAtEntry = tradedAssetPrice;
         } else {
+          console.clear();
           console.log("Watching for price...");
+          console.log(`Current Price :${tradedAssetPrice}`);
+          console.log(
+            `when Price goes ${triggerDirection} ${triggerAlert} You Will Enter A trade`
+          );
+          console.log(`You Are Trading: ${TradedToken}`);
+
+          console.log(describeDifference(tradedAssetPrice, triggerAlert));
         }
+
         break;
 
       case TradeState.EXECUTE_TRADE:
-        // Implement your trade logic here
+        executeTrade(addresses.DAI.TOKEN_ADDRESS);
 
         // Simulate the trade logic
-        await new Promise((res) => setTimeout(res, 5000));
 
         currentState = TradeState.WAIT_FOR_COMPLETION;
         break;
@@ -103,23 +114,30 @@ const trade = async (): Promise<void> => {
             currentRatioAtEntrySuccess - currentRatioAtEntry;
           let stopLoseTriggerAlert: number = triggerAlert * stopLosePrec;
 
+          console.clear();
           console.log("You entered the trade successfully!");
           console.log(
             `TOKENNAME: ${TradedToken}, BALANCE: ${currentBalance}, REAL_ENTRY: ${tradedAssetPrice}, SLIPPAGE: ${slippage}, REAL_STOP_LOSE: ${stopLoseTriggerAlert}`
           );
+          console.log("Resting for 10 seconds.. ");
+
+          await new Promise((res) => setTimeout(res, 10000));
 
           previousBalance = currentBalance; // Update the previous balance
           currentState = TradeState.TRADE_COMPLETED;
         } else {
+          console.clear();
           console.log("Waiting for transaction...");
         }
         break;
 
       case TradeState.TRADE_COMPLETED:
         console.log("Transaction ended successfully!");
+        // await new Promise((res) => setTimeout(res, 5000));
 
         realStopLose = currentRatioAtEntrySuccess * stopLosePrec;
         currentState = TradeState.TRADE_WATCH;
+
         break;
 
       case TradeState.TRADE_WATCH:
@@ -166,6 +184,7 @@ const trade = async (): Promise<void> => {
         clearInterval(tradeInterval);
         break;
     }
+    console.log(getCurrentDateTime());
   } catch (error) {
     console.error(`An error occurred: ${error}`);
   }
