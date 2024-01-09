@@ -1,193 +1,54 @@
 import { addresses } from "../config/config";
-import { getCurrentDateTime } from "../utils/getTime";
-import { describeDifference } from "../utils/percentageDifference";
 import { readJSONFile } from "../utils/readJSONFile";
 import { executeTrade } from "../utils/takeAtrade";
-import { cancelAllPendingTransactions } from "./resetNounce";
 
-type Direction = "above" | "below";
+const triggerPrice: number = 0.000063703070516; // Set your target price here
+const tradedToken: string = "DAI"; // The token you are trading
+const tradeInterval: number = 5000; // Check every 5 seconds
+const triggerDirection: "above" | "below" = "below";
 
-enum TradeState {
-  ALERT_MODE,
-  EXECUTE_TRADE,
-  WAIT_FOR_COMPLETION,
-  TRADE_COMPLETED,
-  TRADE_WATCH,
-  TRADE_EXIT,
-  EXIT_COMPLETED,
-}
-
-const triggerAlert: number = 0.000037384629594;
-const triggerDirection: Direction = "above";
-const stopLosePrec: number = 0.99;
-const TradedToken: string = "DAI";
-let previousBalance: string = "0"; // Store the previous balance of TradedToken
-let realStopLose: number;
-
-let currentBalanceAtEntry: string;
-let currentRatioAtEntry: number;
-let currentBalanceAtEntrySuccess: string;
-let currentRatioAtEntrySuccess: number;
-
-let currentState: TradeState = TradeState.ALERT_MODE;
-
-const shouldTriggerTrade = (
-  triggerAlert: number,
-  triggerDirection: Direction,
-  tradedAssetPrice: number
-): boolean => {
-  if (
-    (triggerAlert < tradedAssetPrice && triggerDirection === "above") ||
-    (triggerAlert > tradedAssetPrice && triggerDirection === "below")
-  ) {
-    return true;
-  }
-  return false;
-};
-
-const trade = async (): Promise<void> => {
+const tradeIfPriceIsRight = async (): Promise<void> => {
   try {
     const generalInfo: any = await readJSONFile(
       "pls-trader/ratiosAndBalancesInfo.json"
     );
 
-    if (!generalInfo || !generalInfo[TradedToken]) {
-      console.log(`Could not find asset information for ${TradedToken}`);
+    if (!generalInfo || !generalInfo[tradedToken]) {
+      console.error(`Could not find asset information for ${tradedToken}`);
       return;
     }
 
-    const tradedAssetPrice: number = generalInfo[TradedToken].CURRENT_PRICE;
-    const currentBalance: string = generalInfo[TradedToken].BALANCE;
+    const currentPrice: number = generalInfo[tradedToken].CURRENT_PRICE;
 
-    switch (currentState) {
-      case TradeState.ALERT_MODE:
-        if (parseFloat(currentBalance) > 0.0001) {
-          // Check if there's a balance. Adjust the threshold as needed.
-          console.log(
-            "You already have a position in the trade. Skipping new trade."
-          );
-          currentState = TradeState.TRADE_COMPLETED; // Move to the completed state
-          return; // Exit this iteration
-        }
+    // Calculate how close the current price is to the trigger price
+    const priceDifference = currentPrice - triggerPrice;
+    const percentageDifference = (priceDifference / triggerPrice) * 100;
 
-        if (
-          shouldTriggerTrade(triggerAlert, triggerDirection, tradedAssetPrice)
-        ) {
-          console.log("Triggering the trade with current stats.");
-          console.log(
-            `TOKENNAME: ${TradedToken}, BALANCE: ${currentBalance}, TRIGER_LIVE_RATIO: ${tradedAssetPrice}`
-          );
-          executeTrade(addresses.DAI.TOKEN_ADDRESS);
-          currentState = TradeState.EXECUTE_TRADE;
+    // Check if the current price has hit the trigger price based on the specified direction
+    const isTradeTriggered: any =
+      triggerDirection === "above"
+        ? currentPrice >= triggerPrice
+        : currentPrice <= triggerPrice;
 
-          // Save the current balance and ratio at the entry point.
-          currentBalanceAtEntry = currentBalance;
-          currentRatioAtEntry = tradedAssetPrice;
-        } else {
-          console.clear();
-          console.log("Watching for price...");
-          console.log(`Current Price :${tradedAssetPrice}`);
-          console.log(
-            `when Price goes ${triggerDirection} ${triggerAlert} You Will Enter A trade`
-          );
-          console.log(`You Are Trading: ${TradedToken}`);
-
-          console.log(describeDifference(tradedAssetPrice, triggerAlert));
-        }
-
-        break;
-
-      case TradeState.EXECUTE_TRADE:
-        executeTrade(addresses.DAI.TOKEN_ADDRESS);
-
-        // Simulate the trade logic
-
-        currentState = TradeState.WAIT_FOR_COMPLETION;
-        break;
-
-      case TradeState.WAIT_FOR_COMPLETION:
-        if (currentBalance !== previousBalance) {
-          currentBalanceAtEntrySuccess = currentBalance;
-          currentRatioAtEntrySuccess = tradedAssetPrice;
-
-          let slippage: number =
-            currentRatioAtEntrySuccess - currentRatioAtEntry;
-          let stopLoseTriggerAlert: number = triggerAlert * stopLosePrec;
-
-          console.clear();
-          console.log("You entered the trade successfully!");
-          console.log(
-            `TOKENNAME: ${TradedToken}, BALANCE: ${currentBalance}, REAL_ENTRY: ${tradedAssetPrice}, SLIPPAGE: ${slippage}, REAL_STOP_LOSE: ${stopLoseTriggerAlert}`
-          );
-          console.log("Resting for 10 seconds.. ");
-
-          await new Promise((res) => setTimeout(res, 10000));
-
-          previousBalance = currentBalance; // Update the previous balance
-          currentState = TradeState.TRADE_COMPLETED;
-        } else {
-          console.clear();
-          console.log("Waiting for transaction...");
-        }
-        break;
-
-      case TradeState.TRADE_COMPLETED:
-        console.log("Transaction ended successfully!");
-        // await new Promise((res) => setTimeout(res, 5000));
-
-        realStopLose = currentRatioAtEntrySuccess * stopLosePrec;
-        currentState = TradeState.TRADE_WATCH;
-
-        break;
-
-      case TradeState.TRADE_WATCH:
-        console.log("Monitoring trade...");
-        console.log(
-          `Current Price: ${tradedAssetPrice}, Stop Rise Value: ${addresses.DAI.STOP_RISE}`
-        );
-
-        if (tradedAssetPrice < realStopLose) {
-          console.log("Price dropped below stop loss! Exiting trade...");
-          currentState = TradeState.TRADE_EXIT;
-        } else if (tradedAssetPrice > realStopLose + addresses.DAI.STOP_RISE) {
-          realStopLose += addresses.DAI.STOP_RISE;
-          console.log(`Raised stop loss to: ${realStopLose}`);
-        }
-        break;
-
-      case TradeState.TRADE_WATCH:
-        console.log("Monitoring trade...");
-
-        if (tradedAssetPrice < realStopLose) {
-          console.log("Price dropped below stop loss! Exiting trade...");
-          currentState = TradeState.TRADE_EXIT;
-        } else if (tradedAssetPrice > realStopLose + addresses.DAI.STOP_RISE) {
-          realStopLose += addresses.DAI.STOP_RISE;
-          console.log(`Raised stop loss to: ${realStopLose}`);
-        }
-        break;
-
-      case TradeState.TRADE_EXIT:
-        console.log("Executing trade exit...");
-        executeTrade(addresses.DAI.TOKEN_ADDRESS); // Assuming this function can be used to exit the trade too
-
-        // Save the exit balance and ratio. For simplicity, re-using the same variables
-        currentBalanceAtEntry = currentBalance;
-        currentRatioAtEntry = tradedAssetPrice;
-
-        currentState = TradeState.EXIT_COMPLETED;
-        break;
-
-      case TradeState.EXIT_COMPLETED:
-        console.log("Trade exit completed successfully!");
-        // If you want to stop the entire script here, clear the interval
-        clearInterval(tradeInterval);
-        break;
+    if (isTradeTriggered) {
+      console.log(
+        `Triggering trade for ${tradedToken} at price: ${currentPrice}. Target was: ${triggerPrice} (${triggerDirection}).`
+      );
+      executeTrade(addresses.DAI.TOKEN_ADDRESS); // Uncomment this line to execute the trade
+      clearInterval(tradeWatcher); // Stop the interval after trade execution
+    } else {
+      console.log(
+        `Current Price of ${tradedToken}: ${currentPrice}, waiting for target price: ${triggerPrice} (${triggerDirection}).`
+      );
+      console.log(
+        `The current price is ${priceDifference.toFixed(
+          10
+        )} (${percentageDifference.toFixed(2)}%) away from the target.`
+      );
     }
-    console.log(getCurrentDateTime());
   } catch (error) {
     console.error(`An error occurred: ${error}`);
   }
 };
 
-const tradeInterval = setInterval(trade, 1000);
+const tradeWatcher = setInterval(tradeIfPriceIsRight, tradeInterval);
