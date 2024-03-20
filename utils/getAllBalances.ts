@@ -20,8 +20,7 @@ export async function getAllBalances() {
 
     const tokensToCheck: TokenAddresses = {
       DAI: addresses.DAI,
-      HEX: addresses.HEX,
-      PLSX: addresses.PLSX,
+      WPLS: addresses.WPLS,
     };
 
     for (const tokenName in tokensToCheck) {

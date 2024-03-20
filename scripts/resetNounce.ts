@@ -7,81 +7,51 @@ export const cancelAllPendingTransactions = async (gaAmplifier: number) => {
   const provider = new ethers.JsonRpcProvider(LIVE_RPC_URL);
   const signer = new ethers.Wallet(LIVE_WALLET_KEY!, provider);
 
-  // Get the nonce of the last confirmed transaction
-  const confirmedNonce = await provider.getTransactionCount(
-    signer.address,
-    "latest"
-  );
+  // An array to hold your pending transaction hashes
+  const pendingTransactionHashes = []; // Populate this array with your actual pending transaction hashes
 
-  // Get the current nonce from the mempool
-  const mempoolNonce = await provider.getTransactionCount(
-    signer.address,
-    "pending"
-  );
-
-  // Calculate the highest nonce in use (either confirmed or pending)
-  const highestNonce = Math.max(confirmedNonce, mempoolNonce);
-
-  console.log(`The highest nonce in use: ${highestNonce}`);
-
-  // Get current block to fetch base fee
-  const currentBlock = await provider.getBlock("latest");
-
-  if (!currentBlock) {
-    console.log("Could not fetch current block.");
-    return;
-  }
-
-  const baseFeePerGas = currentBlock.baseFeePerGas;
-
-  if (baseFeePerGas === null) {
-    console.log("Base fee per gas is null.");
-    return;
-  }
-
-  console.log(`Base fee per gas: ${baseFeePerGas}`);
-
-  // Iterate through all pending transactions and cancel them
-  for (let i = confirmedNonce; i <= highestNonce; i++) {
-    // Compute the gas fee cap
-    const gasFeeCap = BigInt(baseFeePerGas) * BigInt(gaAmplifier); // Adjust as needed
-
-    // Create a replacement transaction with zero value and the same nonce
-    const txParams = {
-      to: signer.address,
-      value: 0,
-      nonce: i,
-      gasPrice: gasFeeCap.toString(),
-    };
-
+  // Iterate through the list of pending transaction hashes
+  for (const txHash of pendingTransactionHashes) {
     try {
-      console.log(`Sending replacement transaction for nonce ${i}...`);
-      const tx = await signer.sendTransaction(txParams);
-      console.log(
-        `Replacement transaction for nonce ${i} sent. Transaction hash:`,
-        tx.hash
+      const tx = await provider.getTransaction(txHash);
+
+      // Skip if the transaction is not pending
+      if (!tx || tx.confirmations > 0) {
+        continue;
+      }
+
+      // Compute the new gas price
+      const gasPrice = ethers.BigNumber.from(tx.gasPrice);
+      const increasedGasPrice = gasPrice.mul(
+        ethers.BigNumber.from(gaAmplifier)
       );
+
+      // Create a new transaction with a higher gas price to replace the pending one
+      const txParams = {
+        to: tx.to, // The destination address (can be the signer address if you're canceling)
+        value: tx.value, // The amount of ether to send (0 if you're canceling)
+        nonce: tx.nonce, // The nonce of the pending transaction
+        gasPrice: increasedGasPrice.toString(), // The new, increased gas price
+        gasLimit: tx.gasLimit, // The gas limit from the original transaction
+      };
+
+      console.log(`Sending replacement transaction for nonce ${tx.nonce}...`);
+      const cancelTx = await signer.sendTransaction(txParams);
+      console.log(`Replacement transaction sent. Hash: ${cancelTx.hash}`);
+      await cancelTx.wait();
       console.log(
-        `Waiting for confirmation of replacement transaction for nonce ${i}...`
-      );
-      await tx.wait();
-      console.log(
-        `Transaction with nonce ${i} has been successfully cancelled.`
+        `Transaction with nonce ${tx.nonce} has been successfully replaced.`
       );
     } catch (err) {
       console.error(
-        `An error occurred while cancelling transaction with nonce ${i}:`
+        `An error occurred while replacing transaction ${txHash}:`,
+        err
       );
-      if (err) {
-        console.error(`Error data: ${JSON.stringify(err)}`);
-      }
-      if (err) {
-        console.error(`Error message: ${err}`);
-      }
     }
   }
 
-  console.log("All pending transactions have been cancelled.");
+  console.log("Finished checking pending transactions.");
 };
 
-cancelAllPendingTransactions(3);
+// You would call the function like this
+// cancelAllPendingTransactions(2); // Assuming you want to double the gas price

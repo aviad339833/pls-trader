@@ -1,97 +1,95 @@
 import { ethers } from "hardhat";
-import { sendMessage } from "./sendMessage";
 import { addresses, LIVE_RPC_URL, LIVE_WALLET_KEY } from "../config/config";
-import { getBalance } from "./getTokenBlance";
 import wpls_ABI from "../abis/wpls_ABI.json";
 import router_ABI from "../abis/router_ABI.json";
-import { cancelAllPendingTransactions } from "../scripts/resetNounce";
+import { getBalance } from "./getTokenBlance";
 
-export const executeTrade = async (tradedContract: string) => {
+export const executeTrade = async (
+  tradeDirection: "DAI_TO_PLS" | "PLS_TO_DAI"
+) => {
   const provider = new ethers.JsonRpcProvider(LIVE_RPC_URL);
-  const signer = new ethers.Wallet(LIVE_WALLET_KEY!, provider);
+  const signer = new ethers.Wallet(LIVE_WALLET_KEY, provider);
 
   let router_contract = new ethers.Contract(
-    process.env.ROUTER_ADDRESS!,
+    process.env.ROUTER_ADDRESS,
     router_ABI,
     signer
   );
 
-  const asset_contract = new ethers.Contract(tradedContract, wpls_ABI, signer);
+  let fromToken, toToken;
 
-  // Get the blockchain's timestamp
+  if (tradeDirection === "DAI_TO_PLS") {
+    fromToken = addresses.DAI.TOKEN_ADDRESS;
+    toToken = addresses.WPLS.TOKEN_ADDRESS; // Assuming there's a PLS address in the config
+  } else {
+    fromToken = addresses.WPLS.TOKEN_ADDRESS; // Assuming there's a PLS address in the config
+    toToken = addresses.DAI.TOKEN_ADDRESS;
+  }
+
+  console.log(`Preparing to trade from ${tradeDirection}...`);
+
   const block = await provider.getBlock("latest");
-  const timestamp = block!.timestamp;
-  const deadline = timestamp + 1000;
+  const deadline = block.timestamp + 1000;
 
-  const TradedAsset_balance = await getBalance(tradedContract);
+  const fromTokenBalance = await getBalance(fromToken);
+  console.log("Retrieved balance for token:", fromTokenBalance.token_symbol);
+  console.log("Balance:", fromTokenBalance.your_token_balance);
+  console.log("Token address:", fromToken);
 
-  // Store the initial balance of the other asset before trading
-  const oldOtherAssetBalance = await getBalance(addresses.WPLS.TOKEN_ADDRESS);
+  if (fromTokenBalance.your_token_balance <= 0) {
+    console.log(`No balance to trade for ${fromTokenBalance.token_symbol}.`);
+    return;
+  }
 
-  if (TradedAsset_balance.your_token_balance > 0) {
-    console.log(`Trade ${TradedAsset_balance.token_symbol} to PLS`);
-    if (TradedAsset_balance.your_token_balance === 0) {
-      sendMessage(
-        `There is not enough ${TradedAsset_balance.token_symbol} inside the wallet`
-      )
-        .then(() => {
-          console.log("Test completed.");
-        })
-        .catch((error) => {
-          console.error(`Test failed: ${error}`);
-        });
-      throw `No ${TradedAsset_balance.token_symbol} to trade`;
-    }
+  // Now using the entire balance for the trade
+  const tradeAmount = fromTokenBalance.your_token_balance;
 
-    const approveTx = await asset_contract.approve(
-      process.env.ROUTER_ADDRESS,
-      TradedAsset_balance.your_token_balance
-    );
+  console.log(
+    `Trading ${tradeAmount} of ${fromTokenBalance.token_symbol} to ${toToken}.`
+  );
 
-    await approveTx.wait();
+  const fromTokenContract = new ethers.Contract(fromToken, wpls_ABI, signer);
 
-    const tx = await router_contract.swapExactTokensForETH(
-      TradedAsset_balance.your_token_balance,
-      1,
-      [tradedContract, addresses.WPLS.TOKEN_ADDRESS],
+  // Approve the router to spend tokens
+  console.log("Approving tokens for trade...");
+  const approveTx = await fromTokenContract.approve(
+    process.env.ROUTER_ADDRESS,
+    tradeAmount
+  );
+  await approveTx.wait();
+  console.log("Approval transaction sent and confirmed.");
+
+  // Execute trade
+  console.log("Executing trade...");
+  let tx;
+  if (tradeDirection === "DAI_TO_PLS") {
+    // DAI to PLS trade example
+    tx = await router_contract.swapExactTokensForTokens(
+      tradeAmount,
+      0, // set minimum amount out as needed
+      [fromToken, toToken],
       signer.address,
       deadline
     );
-
-    // Wait for the transaction to be mined
-    await tx.wait();
   } else {
-    const oldNativeBalance = await provider.getBalance(signer.address);
-    const inputPLS = (oldNativeBalance / 100n) * 97n;
-
-    const tx2 = await router_contract.swapExactETHForTokens(
-      1,
-      [addresses.WPLS.TOKEN_ADDRESS, tradedContract],
+    // PLS to DAI trade example
+    tx = await router_contract.swapExactTokensForTokens(
+      tradeAmount,
+      0, // set minimum amount out as needed
+      [fromToken, toToken],
       signer.address,
-      deadline,
-      { value: inputPLS }
+      deadline
     );
-
-    // Wait for the transaction to be mined
-    await tx2.wait();
   }
 
-  // Check the balance of the other asset after trading
-  const newOtherAssetBalance = await getBalance(tradedContract);
-
-  // Compare the new and old balances
-  if (
-    newOtherAssetBalance.your_token_balance !==
-    oldOtherAssetBalance.your_token_balance
-  ) {
-    sendMessage(`Success: The balance of the other asset has changed.`)
-      .then(() => {
-        console.log("Test completed.");
-      })
-      .catch((error) => {
-        console.error(`Test failed: ${error}`);
-      });
-  } else {
-    console.log("The balance of the other asset did not change.");
-  }
+  console.log(`Transaction hash: ${tx.hash}`);
+  await tx.wait();
+  console.log("Trade executed successfully.");
 };
+
+// Note: The function `getBalance` should return an object containing `your_token_balance`
+// and `token_symbol` based on the `fromToken` address. Ensure this function is correctly implemented.
+
+// Use aggressive gas settings if needed by adjusting the gas price in the transaction parameters.
+
+// executeTrade("DAI_TO_PLS");

@@ -21,53 +21,33 @@ function customDivision(inputStr: BigInt | undefined, divisor: number) {
 async function updateRatios() {
   try {
     const balances = await getAllBalances();
+    const PLS_price = await getRatio(addresses.DAI.PAIR_ADDRESS);
 
-    const PLS_wallet_balnce = await getPLSWalletBalance(); // Await here
-
-    const DAI_price = await getRatio(addresses.DAI.PAIR_ADDRESS);
-    const HEX_price = await getRatio(addresses.HEX.PAIR_ADDRESS);
-    const PLSX_price = await getRatio(addresses.PLSX.PAIR_ADDRESS);
-
-    const ratiosAndBalancesInfo = {
+    const DAIInfo = {
       DAI: {
-        CURRENT_PRICE: customDivision(DAI_price, 10000000000), // Convert to BigInt and ensure it is not undefined
-        BALANCE: String(balances.DAI),
-        CURRENT_PRICE_BIGINT: String(DAI_price),
+        CURRENT_PRICE: customDivision(PLS_price, 10000000000), // Adjusted for PLS_price's specific scaling factor
+        BALANCE: String(balances.DAI), // Balance in DAI
+        CURRENT_PRICE_BIGINT: String(PLS_price), // Original BigInt price
       },
-      HEX: {
-        CURRENT_PRICE: HEX_price
-          ? customDivision(HEX_price, 100000000000000000000)
-          : 0, // Check for undefined
-        CURRENT_PRICE_BIGINT: String(HEX_price),
-        BALANCE: String(balances.HEX),
-      },
-      PLSX: {
-        CURRENT_PRICE: PLSX_price ? customDivision(PLSX_price, 10000000000) : 0, // Check for undefined
-        CURRENT_PRICE_BIGINT: String(PLSX_price),
-        BALANCE: String(balances.PLSX),
-      },
-      PLS_WALLET: {
-        CURRENT_PRICE: DAI_price ? customDivision(DAI_price, 10000000000) : 0, // Check for undefined
-        CURRENT_PRICE_BIGINT: String(DAI_price),
-        BALANCE: String(PLS_wallet_balnce), // No need to use 'await' here agai)n
+      WPLS: {
+        CURRENT_PRICE: customDivision(PLS_price, 10000000000), // Adjusted for DAI's specific scaling factor
+        BALANCE: String(balances.WPLS), // Balance in DAI
+        CURRENT_PRICE_BIGINT: String(PLS_price), // Original BigInt price
       },
     };
 
-    // Convert ratiosAndBalancesInfo to a JSON string
-    const jsonStr = JSON.stringify(ratiosAndBalancesInfo, null, 2); // The "2" argument pretty-prints the JSON
+    // Convert DAIInfo to a JSON string
+    const jsonStr = JSON.stringify(DAIInfo, null, 2); // Pretty-print the JSON
 
-    // Write the JSON string to a file named ratiosAndBalancesInfo.json
-    await fs.writeFile("ratiosAndBalancesInfo.json", jsonStr);
+    // Write only the DAI information to a file named DAIInfo.json
+    await fs.writeFile("DAIInfo.json", jsonStr);
 
-    console.clear();
-    console.log(ratiosAndBalancesInfo);
-
-    console.clear();
-    console.log(ratiosAndBalancesInfo);
+    console.clear(); // Clear the console to keep it clean
+    console.log(DAIInfo); // Log the DAI information for verification
   } catch (error) {
-    console.error("Error updating ratios:", error);
+    console.error("Error updating DAI price:", error);
   }
 }
 
-// Run updateRatios every 5 seconds
+// Run updateRatios every second
 setInterval(updateRatios, 1000);

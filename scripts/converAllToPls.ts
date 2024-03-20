@@ -18,6 +18,7 @@ type TokenAddresses = {
 async function checkAndExecuteTrade(tokenName: string, tokenAddress: string) {
   const balance = await getBalance(tokenAddress);
 
+  // console.log('balance',balance)
   if (balance.your_token_balance > 0) {
     const tradeResult = await executeTrade(tokenAddress);
     console.log(`${tokenName} Trade Result:`, tradeResult);
