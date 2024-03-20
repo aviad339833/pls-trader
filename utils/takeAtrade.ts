@@ -28,7 +28,7 @@ export const executeTrade = async (
 
   console.log(`Preparing to trade from ${tradeDirection}...`);
 
-  const block = await provider.getBlock("latest");
+  const block: any = await provider.getBlock("latest");
   const deadline = block.timestamp + 1000;
 
   const fromTokenBalance = await getBalance(fromToken);
