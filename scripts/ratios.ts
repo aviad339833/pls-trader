@@ -28,11 +28,13 @@ async function updateRatios() {
         CURRENT_PRICE: customDivision(PLS_price, 10000000000), // Adjusted for PLS_price's specific scaling factor
         BALANCE: String(balances.DAI), // Balance in DAI
         CURRENT_PRICE_BIGINT: String(PLS_price), // Original BigInt price
+        TOKEN_NAME: "DAI", // Original BigInt price
       },
-      WPLS: {
+      PLS: {
         CURRENT_PRICE: customDivision(PLS_price, 10000000000), // Adjusted for DAI's specific scaling factor
         BALANCE: String(balances.WPLS), // Balance in DAI
         CURRENT_PRICE_BIGINT: String(PLS_price), // Original BigInt price
+        TOKEN_NAME: "PLS", // Original BigInt price
       },
     };
 

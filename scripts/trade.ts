@@ -1,104 +1,145 @@
-import { addresses } from "../config/config";
+import fs from "fs"; // Import fs module
 import { readJSONFile } from "../utils/readJSONFile";
 import { executeTrade } from "../utils/takeAtrade";
-import { cancelAllPendingTransactions } from "./resetNounce";
-import console from "console";
 
-// Define trigger parameters outside the function if they remain constant
-const triggerPrice = 0.000117871023047; // Target price for trading decision
-const triggerDirection = "below"; // Trading direction, "above" or "below"
-const tradedToken = "DAI"; // The token you are planning to trade
-const stopLossPercentage = 1; // Stop-loss percentage
-let isTradeActive = false; // Flag to indicate if a trade is currently active
+const triggerPrice = 0.000127200608966;
+let triggerDirection: "above" | "below" = "above";
+let tradedToken: "DAI" | "PLS" = "DAI";
+const stopLossPercentage = 1;
+let stopLossDirection: "above" | "below" = "above";
 
-const calculateStopLossPrice = (entryPrice: any, isAbove: any) => {
-  return isAbove
-    ? entryPrice * (1 + stopLossPercentage / 100)
-    : entryPrice * (1 - stopLossPercentage / 100);
-};
+let isTradeActive = loadTradeStatus();
 
-const getCurrentTime = () => new Date().toLocaleTimeString();
+function saveTradeStatus(isTradeActive: boolean) {
+  const tradeStatus = { isTradeActive };
+  fs.writeFileSync(
+    "tradeStatus.json",
+    JSON.stringify(tradeStatus, null, 2),
+    "utf8"
+  );
+}
 
-const tradeIfPriceIsRight = async () => {
-  console.clear(); // Clear the console at the start of each function call
+function resetLogFile() {
+  fs.writeFileSync("tradeStatus.json", "", "utf8"); // Clears the content of the log file
+}
+function tradeStats() {
+  console.log(` triggerPrice : ${triggerPrice}`);
+  console.log(` triggerDirection : ${triggerDirection}`);
+  console.log(` tradedToken : ${tradedToken}`);
+  console.log(` stopLossPercentage : ${stopLossPercentage}`);
+  console.log(` stopLossDirection : ${stopLossDirection}`);
+}
 
+function loadTradeStatus() {
   try {
-    const DAIInfo = await readJSONFile("pls-trader/DAIInfo.json");
-    const WPLS_price = DAIInfo.WPLS.CURRENT_PRICE;
-    const WPLS_balance = DAIInfo.WPLS.BALANCE / 1e18;
-    const DAI_balance = DAIInfo.DAI.BALANCE / 1e18;
+    const data = fs.readFileSync("tradeStatus.json", "utf8");
+    const tradeStatus = JSON.parse(data);
+    return tradeStatus.isTradeActive;
+  } catch (error) {
+    console.log("No existing trade status found, starting fresh.");
+    return false; // Default to false if file doesn't exist or an error occurs
+  }
+}
 
-    console.log(`Time: ${getCurrentTime()}`);
-    console.log(`WPLS Balance: ${WPLS_balance}`);
-    console.log(`DAI Balance: ${DAI_balance}`);
-    console.log(`Current PLS Price: ${WPLS_price} \n\n`);
-    console.log(`StopLoss %: ${stopLossPercentage}% `);
+// Logging function to append logs to a file
+function logToFile(message: string) {
+  const timestamp = new Date().toISOString();
+  const logMessage = `${timestamp} - ${message}\n`;
+  fs.appendFileSync("tradeLog.txt", logMessage, "utf8"); // Change 'tradeLog.txt' to your preferred log file name
+}
+
+async function fetchCurrentPrice() {
+  console.clear();
+  console.log("Fetching current price...");
+
+  const data = await readJSONFile("pls-trader/DAIInfo.json");
+
+  if (data.PLS.TOKEN_NAME === tradedToken && !(data.PLS.BALANCE > 0)) {
+    tradeStats();
     console.log(
-      `Trading conditions: Price ${triggerDirection} ${triggerPrice} `
+      `You don't have balance to trade ${tradedToken} Please check the stats again `
+    );
+    process.exit(); // Exits the process immediately
+  }
+  if (data.DAI.TOKEN_NAME === tradedToken && !(data.DAI.BALANCE > 0)) {
+    tradeStats();
+    console.log(
+      `You don't have balance to trade ${tradedToken} Please check the stats again `
+    );
+    process.exit(); // Exits the process immediately
+  }
+  if (data && data.PLS && data.PLS.CURRENT_PRICE) {
+    console.log(`Trigger Price: ${triggerPrice}`);
+    console.log(
+      `If PLS price goes ${triggerDirection} ${triggerPrice}, execute a trade `
+    );
+    console.log(`Current WPLS Price: ${data.PLS.CURRENT_PRICE}`);
+
+    return data.PLS.CURRENT_PRICE;
+  } else {
+    throw new Error("Failed to fetch current WPLS price");
+  }
+}
+
+async function checkAndExecuteTrade() {
+  try {
+    const currentPrice = await fetchCurrentPrice();
+    const percentageDifference =
+      ((currentPrice - triggerPrice) / triggerPrice) * 100;
+    console.log(
+      `Percentage difference from trigger price: ${percentageDifference.toFixed(
+        2
+      )}%`
     );
 
-    let priceDifference = triggerPrice - WPLS_price;
-    // console.log(`Price difference from target: ${priceDifference}`);
-
-    let percentageDifference = (Math.abs(priceDifference) / triggerPrice) * 100;
-    console.log(
-      `Percentage difference from target: ${percentageDifference.toFixed(2)}%`
-    );
-
-    let shouldTrade = false;
-    if (triggerDirection === "below" && WPLS_price < triggerPrice) {
-      shouldTrade = true;
-    } else if (triggerDirection === "above" && WPLS_price > triggerPrice) {
-      shouldTrade = true;
-    }
-
-    if (shouldTrade && !isTradeActive) {
-      cancelAllPendingTransactions(2);
-      const tradeDirection =
-        tradedToken === "DAI" ? "DAI_TO_PLS" : "PLS_TO_DAI";
-      await executeTrade(tradeDirection);
-      console.log(`Trade executed for ${tradedToken} at price: ${WPLS_price}.`);
-      isTradeActive = true;
-
-      const isStopLossAbove = tradedToken === "PLS";
-      const stopLossPrice = calculateStopLossPrice(WPLS_price, isStopLossAbove);
+    if (!isTradeActive) {
       console.log(
-        `Your stop-loss: you will exit the trade if price goes ${
-          isStopLossAbove ? "above" : "below"
-        } ${stopLossPrice}`
+        `Checking trade conditions at ${new Date().toLocaleTimeString()}...`
       );
 
-      // Function to monitor price and execute stop-loss
-      const monitorPriceAndExecuteStopLoss = async () => {
-        const freshDAIInfo = await readJSONFile("pls-trader/DAIInfo.json"); // Fetch fresh data
-        const currentPrice = freshDAIInfo.WPLS.CURRENT_PRICE;
+      // Adjusted condition to check if currentPrice is below the triggerPrice for "below" direction
+      if (
+        (triggerDirection === "below" && currentPrice < triggerPrice) ||
+        (triggerDirection === "above" && currentPrice > triggerPrice)
+      ) {
+        const tradeDirection =
+          tradedToken === "PLS" ? "PLS_TO_DAI" : "DAI_TO_PLS";
+        await executeTrade(tradeDirection);
+        console.log(
+          `Executed ${tradeDirection} trade at price: ${currentPrice}. Trade is now active.`
+        );
+        logToFile(
+          `Executed ${tradeDirection} trade at price: ${currentPrice}. Trade is now active.`
+        ); // Log trade execution
 
-        if (
-          (isStopLossAbove && currentPrice >= stopLossPrice) ||
-          (!isStopLossAbove && currentPrice <= stopLossPrice)
-        ) {
-          const stopLossTradeDirection =
-            tradeDirection === "DAI_TO_PLS" ? "PLS_TO_DAI" : "DAI_TO_PLS";
-          await executeTrade(stopLossTradeDirection);
-          console.log(`Stop-loss executed at price: ${currentPrice}.`);
-          isTradeActive = false; // Reset flag after stop-loss execution
-          clearInterval(stopLossWatcher); // Stop monitoring once stop-loss is executed
-        }
-      };
+        isTradeActive = true;
+        saveTradeStatus(isTradeActive);
 
-      // Start monitoring for stop-loss condition
-      const stopLossInterval = 5000; // Check every 5 seconds
-      const stopLossWatcher = setInterval(
-        monitorPriceAndExecuteStopLoss,
-        stopLossInterval
+        // The rest of your logic for stop-loss condition remains the same...
+      } else {
+        console.log("Current price does not meet trade conditions. Waiting...");
+      }
+    } else {
+      console.log(
+        "A trade is already active. Monitoring for stop-loss condition..."
       );
-    } else if (!shouldTrade && !isTradeActive) {
-      console.log("Waiting for entry conditions...");
     }
   } catch (error) {
     console.error(`An error occurred: ${error}`);
+    logToFile(`An error occurred: ${error}`); // Log error
   }
-};
+}
 
-const tradeInterval = 5000; // Time interval to check for trading conditions
-const tradeWatcher = setInterval(tradeIfPriceIsRight, tradeInterval); // Start the trading watcher
+function calculateStopLossPrice(
+  entryPrice: any,
+  isBelow: any,
+  percentage: any
+) {
+  return isBelow
+    ? entryPrice * (1 - percentage / 100)
+    : entryPrice * (1 + percentage / 100);
+}
+
+// Kick off the process
+
+setInterval(checkAndExecuteTrade, 5000); // Check every 5 seconds, aligning with your JSON update frequency
