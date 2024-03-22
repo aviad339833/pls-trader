@@ -1,145 +1,103 @@
-import fs from "fs"; // Import fs module
 import { readJSONFile } from "../utils/readJSONFile";
 import { executeTrade } from "../utils/takeAtrade";
 
-const triggerPrice = 0.000127200608966;
+// Initial trade setup
+const triggerPrice = 0.000116994351858;
 let triggerDirection: "above" | "below" = "above";
 let tradedToken: "DAI" | "PLS" = "DAI";
 const stopLossPercentage = 1;
-let stopLossDirection: "above" | "below" = "above";
+let stopLossDirection: "above" | "below" = "below"; // Specify stop-loss direction
 
-let isTradeActive = loadTradeStatus();
+// Trade state
+let isTradeActive = false;
+let entryPrice = 0;
+let stopLossPrice = 0;
 
-function saveTradeStatus(isTradeActive: boolean) {
-  const tradeStatus = { isTradeActive };
-  fs.writeFileSync(
-    "tradeStatus.json",
-    JSON.stringify(tradeStatus, null, 2),
-    "utf8"
-  );
-}
-
-function resetLogFile() {
-  fs.writeFileSync("tradeStatus.json", "", "utf8"); // Clears the content of the log file
-}
-function tradeStats() {
-  console.log(` triggerPrice : ${triggerPrice}`);
-  console.log(` triggerDirection : ${triggerDirection}`);
-  console.log(` tradedToken : ${tradedToken}`);
-  console.log(` stopLossPercentage : ${stopLossPercentage}`);
-  console.log(` stopLossDirection : ${stopLossDirection}`);
-}
-
-function loadTradeStatus() {
-  try {
-    const data = fs.readFileSync("tradeStatus.json", "utf8");
-    const tradeStatus = JSON.parse(data);
-    return tradeStatus.isTradeActive;
-  } catch (error) {
-    console.log("No existing trade status found, starting fresh.");
-    return false; // Default to false if file doesn't exist or an error occurs
-  }
-}
-
-// Logging function to append logs to a file
-function logToFile(message: string) {
-  const timestamp = new Date().toISOString();
-  const logMessage = `${timestamp} - ${message}\n`;
-  fs.appendFileSync("tradeLog.txt", logMessage, "utf8"); // Change 'tradeLog.txt' to your preferred log file name
+// Determine trade direction based on the traded token
+function getTradeDirection(
+  tradedToken: "DAI" | "PLS"
+): "PLS_TO_DAI" | "DAI_TO_PLS" {
+  return tradedToken === "PLS" ? "PLS_TO_DAI" : "DAI_TO_PLS";
 }
 
 async function fetchCurrentPrice() {
   console.clear();
   console.log("Fetching current price...");
-
   const data = await readJSONFile("pls-trader/DAIInfo.json");
 
-  if (data.PLS.TOKEN_NAME === tradedToken && !(data.PLS.BALANCE > 0)) {
-    tradeStats();
+  if (data && data[tradedToken] && data[tradedToken].CURRENT_PRICE) {
     console.log(
-      `You don't have balance to trade ${tradedToken} Please check the stats again `
+      `Current ${tradedToken} Price: ${data[tradedToken].CURRENT_PRICE}`
     );
-    process.exit(); // Exits the process immediately
-  }
-  if (data.DAI.TOKEN_NAME === tradedToken && !(data.DAI.BALANCE > 0)) {
-    tradeStats();
-    console.log(
-      `You don't have balance to trade ${tradedToken} Please check the stats again `
-    );
-    process.exit(); // Exits the process immediately
-  }
-  if (data && data.PLS && data.PLS.CURRENT_PRICE) {
-    console.log(`Trigger Price: ${triggerPrice}`);
-    console.log(
-      `If PLS price goes ${triggerDirection} ${triggerPrice}, execute a trade `
-    );
-    console.log(`Current WPLS Price: ${data.PLS.CURRENT_PRICE}`);
-
-    return data.PLS.CURRENT_PRICE;
+    return data[tradedToken].CURRENT_PRICE;
   } else {
-    throw new Error("Failed to fetch current WPLS price");
+    console.log(`Failed to fetch current price for ${tradedToken}.`);
+    return null;
   }
+}
+
+function calculatePercentageDifference(price1: number, price2: number): string {
+  return (((price1 - price2) / price2) * 100).toFixed(2);
 }
 
 async function checkAndExecuteTrade() {
   try {
     const currentPrice = await fetchCurrentPrice();
-    const percentageDifference =
-      ((currentPrice - triggerPrice) / triggerPrice) * 100;
-    console.log(
-      `Percentage difference from trigger price: ${percentageDifference.toFixed(
-        2
-      )}%`
-    );
+    if (currentPrice === null) return; // Exit if unable to fetch price
 
     if (!isTradeActive) {
-      console.log(
-        `Checking trade conditions at ${new Date().toLocaleTimeString()}...`
-      );
-
-      // Adjusted condition to check if currentPrice is below the triggerPrice for "below" direction
+      console.log(`Original trigger price: ${triggerPrice}`);
       if (
         (triggerDirection === "below" && currentPrice < triggerPrice) ||
         (triggerDirection === "above" && currentPrice > triggerPrice)
       ) {
-        const tradeDirection =
-          tradedToken === "PLS" ? "PLS_TO_DAI" : "DAI_TO_PLS";
-        await executeTrade(tradeDirection);
+        await executeTrade(getTradeDirection(tradedToken));
         console.log(
-          `Executed ${tradeDirection} trade at price: ${currentPrice}. Trade is now active.`
+          `Trade initiated: ${getTradeDirection(
+            tradedToken
+          )} at price: ${currentPrice}.`
         );
-        logToFile(
-          `Executed ${tradeDirection} trade at price: ${currentPrice}. Trade is now active.`
-        ); // Log trade execution
-
+        entryPrice = currentPrice;
         isTradeActive = true;
-        saveTradeStatus(isTradeActive);
-
-        // The rest of your logic for stop-loss condition remains the same...
+        // Calculate and log the stop-loss price
+        stopLossPrice =
+          stopLossDirection === "below"
+            ? entryPrice * (1 - stopLossPercentage / 100)
+            : entryPrice * (1 + stopLossPercentage / 100);
+        console.log(
+          `Stop-loss price set at: ${stopLossPrice} (${stopLossPercentage}% ${stopLossDirection} entry price).`
+        );
       } else {
-        console.log("Current price does not meet trade conditions. Waiting...");
+        const percentageDiff = calculatePercentageDifference(
+          currentPrice,
+          triggerPrice
+        );
+        console.log(
+          `Trade conditions not met. Current price is ${percentageDiff}% from trigger.`
+        );
       }
     } else {
-      console.log(
-        "A trade is already active. Monitoring for stop-loss condition..."
+      const stopLossPercentDiff = calculatePercentageDifference(
+        currentPrice,
+        stopLossPrice
       );
+      console.log(
+        `Monitoring for stop-loss. Current price is ${stopLossPercentDiff}% from stop-loss level.`
+      );
+
+      let stopLossTriggered =
+        (stopLossDirection === "below" && currentPrice <= stopLossPrice) ||
+        (stopLossDirection === "above" && currentPrice >= stopLossPrice);
+
+      if (stopLossTriggered) {
+        console.log("Stop-loss condition met. Closing the trade...");
+        await executeTrade(getTradeDirection(tradedToken));
+        isTradeActive = false;
+      }
     }
   } catch (error) {
     console.error(`An error occurred: ${error}`);
-    logToFile(`An error occurred: ${error}`); // Log error
   }
 }
 
-function calculateStopLossPrice(
-  entryPrice: any,
-  isBelow: any,
-  percentage: any
-) {
-  return isBelow
-    ? entryPrice * (1 - percentage / 100)
-    : entryPrice * (1 + percentage / 100);
-}
-
-// Kick off the process
-
-setInterval(checkAndExecuteTrade, 5000); // Check every 5 seconds, aligning with your JSON update frequency
+setInterval(checkAndExecuteTrade, 5000); // Check every 5 seconds
