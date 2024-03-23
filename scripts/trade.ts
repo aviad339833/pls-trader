@@ -2,11 +2,11 @@ import { readJSONFile } from "../utils/readJSONFile";
 import { executeTrade } from "../utils/takeAtrade";
 
 // Initial trade setup
-const triggerPrice = 0.000116994351858;
-let triggerDirection: "above" | "below" = "above";
-let tradedToken: "DAI" | "PLS" = "DAI";
+const triggerPrice = 0.000116780624323;
+let triggerDirection: "above" | "below" = "below";
+let tradedToken: "DAI" | "PLS" = "PLS";
 const stopLossPercentage = 1;
-let stopLossDirection: "above" | "below" = "below"; // Specify stop-loss direction
+let stopLossDirection: "above" | "below" = "above"; // Specify stop-loss direction
 
 // Trade state
 let isTradeActive = false;
@@ -65,7 +65,7 @@ async function checkAndExecuteTrade() {
             ? entryPrice * (1 - stopLossPercentage / 100)
             : entryPrice * (1 + stopLossPercentage / 100);
         console.log(
-          `Stop-loss price set at: ${stopLossPrice} (${stopLossPercentage}% ${stopLossDirection} entry price).`
+          `Stop-loss price set at: ${stopLossPrice} (${stopLossPercentage}% ${stopLossDirection} entry price). Price needs to move ${stopLossDirection} to hit stop-loss.`
         );
       } else {
         const percentageDiff = calculatePercentageDifference(
@@ -82,7 +82,7 @@ async function checkAndExecuteTrade() {
         stopLossPrice
       );
       console.log(
-        `Monitoring for stop-loss. Current price is ${stopLossPercentDiff}% from stop-loss level.`
+        `Monitoring for stop-loss. Current price is ${stopLossPercentDiff}% from stop-loss level. Price needs to move ${stopLossDirection} to hit stop-loss.`
       );
 
       let stopLossTriggered =
