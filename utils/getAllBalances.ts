@@ -21,6 +21,7 @@ export async function getAllBalances() {
     const tokensToCheck: TokenAddresses = {
       DAI: addresses.DAI,
       WPLS: addresses.WPLS,
+      DWB: addresses.DWB,
     };
 
     for (const tokenName in tokensToCheck) {

@@ -22,12 +22,23 @@ async function updateRatios() {
   try {
     const balances = await getAllBalances();
     const PLS_price = await getRatio(addresses.DAI.PAIR_ADDRESS);
+    const DWB_price = await getRatio(addresses.DWB.PAIR_ADDRESS);
+
+    const DWB_price_in_USD =
+      customDivision(PLS_price, 10000000000) *
+      (1 / customDivision(DWB_price, 10000000000));
 
     const DAIInfo = {
       DAI: {
         CURRENT_PRICE: customDivision(PLS_price, 10000000000), // Adjusted for PLS_price's specific scaling factor
         BALANCE: String(balances.DAI), // Balance in DAI
         CURRENT_PRICE_BIGINT: String(PLS_price), // Original BigInt price
+        TOKEN_NAME: "DAI", // Original BigInt price
+      },
+      DWB: {
+        CURRENT_PRICE: DWB_price_in_USD,
+        BALANCE: String(balances.DWB),
+        CURRENT_PRICE_BIGINT: String(DWB_price), // Original BigInt price
         TOKEN_NAME: "DAI", // Original BigInt price
       },
       PLS: {
