@@ -1,12 +1,15 @@
 import { ethers } from "hardhat";
-import { LIVE_RPC_URL, LIVE_WALLET_KEY } from "../config/config";
+import { LIVE_RPC_URL, addresses } from "../config/config";
 import wpls_ABI from "../abis/wpls_ABI.json";
 
 const provider = new ethers.JsonRpcProvider(LIVE_RPC_URL);
-const signer = new ethers.Wallet(LIVE_WALLET_KEY!, provider);
 
-export async function getBalance(token_contract_address: string) {
-  // Create a new contract instance with the provided token contract address
+export async function getBalance(
+  token_contract_address: string,
+  WALLET_PRIVATE_KEY: string
+) {
+  const signer = new ethers.Wallet(WALLET_PRIVATE_KEY, provider);
+
   const token_balance = new ethers.Contract(
     token_contract_address,
     wpls_ABI,

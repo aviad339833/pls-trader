@@ -23,7 +23,7 @@ function getTradeDirection(
 async function fetchCurrentPrice() {
   console.clear();
   console.log("Fetching current price...");
-  const data = await readJSONFile("pls-trader/DAIInfo.json");
+  const data = await readJSONFile("pls-trader/priceData.json");
 
   if (data && data[tradedToken] && data[tradedToken].CURRENT_PRICE) {
     console.log(

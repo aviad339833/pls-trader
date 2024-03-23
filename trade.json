@@ -1,0 +1,22 @@
+{
+  "tradingStrategies": [
+    {
+      "walletAddress": "0x59a37F1d15A0dF5B2B96830F189e4dEC2Ee8e28a",
+      "pair": "DWB_WPLS",
+      "entry": 0.000003739484329,
+      "termDirection": "above",
+      "stop": 2,
+      "stopDirection": "below",
+      "strategy": "trailing"
+    },
+    {
+      "walletAddress": "0x242C542156727990d73c5a80145758b202a65d14",
+      "pair": "HOA_WPLS",
+      "entry": 0.02800890413691,
+      "termDirection": "below",
+      "stop": 2,
+      "stopDirection": "below",
+      "strategy": "trailing"
+    }
+  ]
+}

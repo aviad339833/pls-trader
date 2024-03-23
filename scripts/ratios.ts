@@ -1,64 +1,100 @@
 import fs from "fs/promises";
 import { getAllBalances } from "../utils/getAllBalances";
 import { getRatio } from "../utils/getRatio";
-import { addresses } from "../config/config";
+import { AMPLIFIER, addresses } from "../config/config";
 import { getPLSWalletBalance } from "../utils/getPLSWalletBalance";
+import { getBalance } from "../utils/getTokenBlance";
 
-function customDivision(inputStr: BigInt | undefined, divisor: number) {
-  if (inputStr === undefined) {
-    // Handle undefined, you can return a default value or throw an error.
-    return 0;
+async function loadTradingConfigurations() {
+  const configFileContent = await fs.readFile("trade.json", "utf8");
+  const config = JSON.parse(configFileContent);
+  return config.tradingStrategies;
+}
+
+export const bigIntToDecimalString = (
+  rawBigInt: BigInt | undefined,
+  decimals: number
+): string => {
+  if (typeof rawBigInt === "undefined") {
+    return "0";
   }
 
-  // Remove the 'n' from the input string and convert to a number
-  const inputNumber = parseFloat(String(inputStr).replace("n", ""));
-  // Divide the input number by the divisor
-  const result = inputNumber / divisor;
+  const fullStr = rawBigInt.toString().padStart(decimals + 1, "0");
+  const intPart = fullStr.slice(0, -decimals) || "0";
+  const fractPart = fullStr.slice(-decimals).padEnd(decimals, "0");
 
-  return result;
-}
+  return intPart + "." + fractPart;
+};
 
 async function updateRatios() {
   try {
-    const balances = await getAllBalances();
-    const PLS_price = await getRatio(addresses.DAI.PAIR_ADDRESS);
-    const DWB_price = await getRatio(addresses.DWB.PAIR_ADDRESS);
+    const tradingStrategies = await loadTradingConfigurations();
+    let priceData: any = {};
+    console.log("Loaded trading strategies:", tradingStrategies.length);
 
-    const DWB_price_in_USD =
-      customDivision(PLS_price, 10000000000) *
-      (1 / customDivision(DWB_price, 10000000000));
+    for (const strategy of tradingStrategies) {
+      const { pair, walletAddress } = strategy;
 
-    const DAIInfo = {
-      DAI: {
-        CURRENT_PRICE: customDivision(PLS_price, 10000000000), // Adjusted for PLS_price's specific scaling factor
-        BALANCE: String(balances.DAI), // Balance in DAI
-        CURRENT_PRICE_BIGINT: String(PLS_price), // Original BigInt price
-        TOKEN_NAME: "DAI", // Original BigInt price
-      },
-      DWB: {
-        CURRENT_PRICE: DWB_price_in_USD,
-        BALANCE: String(balances.DWB),
-        CURRENT_PRICE_BIGINT: String(DWB_price), // Original BigInt price
-        TOKEN_NAME: "DAI", // Original BigInt price
-      },
-      PLS: {
-        CURRENT_PRICE: customDivision(PLS_price, 10000000000), // Adjusted for DAI's specific scaling factor
-        BALANCE: String(balances.WPLS), // Balance in DAI
-        CURRENT_PRICE_BIGINT: String(PLS_price), // Original BigInt price
-        TOKEN_NAME: "PLS", // Original BigInt price
-      },
-    };
+      const [fromTokenSymbol, toTokenSymbol] = pair.split("_");
 
-    // Convert DAIInfo to a JSON string
-    const jsonStr = JSON.stringify(DAIInfo, null, 2); // Pretty-print the JSON
+      // Ensure you have the correct private keys setup for each wallet in your config
+      const privateKey = addresses[fromTokenSymbol].WALLET_PRIVATE_KEY!; // This line seems to be incorrect as private keys should be fetched based on walletAddress, not tokenSymbol.
+      const fromTokenBalance = await getBalance(
+        addresses[fromTokenSymbol].TOKEN_ADDRESS.toLowerCase(),
+        privateKey
+      );
 
-    // Write only the DAI information to a file named DAIInfo.json
-    await fs.writeFile("DAIInfo.json", jsonStr);
+      const toTokenBalance = await getBalance(
+        addresses[toTokenSymbol].TOKEN_ADDRESS.toLowerCase(),
+        privateKey
+      );
 
-    console.clear(); // Clear the console to keep it clean
-    console.log(DAIInfo); // Log the DAI information for verification
+      console.log(
+        `Fetching prices for ${fromTokenSymbol} and ${toTokenSymbol}`
+      );
+
+      // Note: getRatio doesn't seem to require a private key in your original function definition.
+      const fromTokenPrice = await getRatio(
+        addresses[fromTokenSymbol].PAIR_ADDRESS.toLowerCase(),
+        privateKey
+      );
+      const toTokenPrice = await getRatio(
+        addresses[toTokenSymbol].PAIR_ADDRESS.toLowerCase(),
+        privateKey
+      );
+
+      console.log(
+        `Price for ${fromTokenSymbol}:`,
+        bigIntToDecimalString(fromTokenPrice, 10)
+      );
+      console.log(
+        `Price for ${toTokenSymbol}:`,
+        bigIntToDecimalString(toTokenPrice, 10)
+      );
+
+      // Calculating the price ratio if needed or direct prices
+      priceData[fromTokenSymbol] = {
+        CURRENT_PRICE: fromTokenPrice
+          ? bigIntToDecimalString(fromTokenPrice, 10)
+          : "Price not available",
+        BALANCE: String(fromTokenBalance.your_token_balance),
+        TOKEN_NAME: fromTokenSymbol,
+      };
+
+      priceData[toTokenSymbol] = {
+        CURRENT_PRICE: toTokenPrice
+          ? bigIntToDecimalString(toTokenPrice, 10)
+          : "Price not available",
+        BALANCE: String(toTokenBalance.your_token_balance),
+        TOKEN_NAME: toTokenSymbol,
+      };
+    }
+
+    const jsonStr = JSON.stringify(priceData, null, 2);
+    await fs.writeFile("priceData.json", jsonStr);
+    console.log("Updated price data successfully.");
   } catch (error) {
-    console.error("Error updating DAI price:", error);
+    console.error("Error updating price data:", error);
   }
 }
 
