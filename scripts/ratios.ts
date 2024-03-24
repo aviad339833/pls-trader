@@ -14,9 +14,9 @@ async function loadTradingConfigurations() {
 export const bigIntToDecimalString = (
   rawBigInt: BigInt | undefined,
   decimals: number
-): string => {
+): number => {
   if (typeof rawBigInt === "undefined") {
-    return "0";
+    return 0;
   }
 
   const fullStr = rawBigInt.toString().padStart(decimals + 1, "0");
@@ -24,74 +24,85 @@ export const bigIntToDecimalString = (
   const fractPart = fullStr.slice(-decimals).padEnd(decimals, "0");
 
   // console.log("fullStr", Number(intPart + "." + fractPart));
-  return intPart + "." + fractPart;
+  return Number(intPart + "." + fractPart);
 };
 
 async function updateRatios() {
+  let plsPrice: number = 0;
   try {
     const tradingStrategies = await loadTradingConfigurations();
-    let priceData: any = {};
     console.log("Loaded trading strategies:", tradingStrategies.length);
 
+    let fetchPromises = [];
+
+    // Prepare data structure for results
+    let priceData: any = {};
+
+    // Gather all promises for fetching ratios
     for (const strategy of tradingStrategies) {
       const { pair } = strategy;
-
       const [fromTokenSymbol, toTokenSymbol] = pair.split("_");
 
-      // Ensure you have the correct private keys setup for each wallet in your config
-      const privateKey = addresses[fromTokenSymbol].WALLET_PRIVATE_KEY!; // This line seems to be incorrect as private keys should be fetched based on walletAddress, not tokenSymbol.
+      // Skip if WPLS is the target token, as we're calculating ratios relative to WPLS
 
-      const fromTokenBalance = await getBalance(
-        addresses[fromTokenSymbol].TOKEN_ADDRESS.toLowerCase(),
-        privateKey
+      fetchPromises.push(
+        getRatio(
+          addresses[fromTokenSymbol].PAIR_ADDRESS.toLowerCase(),
+          addresses[fromTokenSymbol].TOKEN_ADDRESS,
+          addresses[fromTokenSymbol].WALLET_PRIVATE_KEY
+        ).then((price) => {
+          return {
+            symbol: fromTokenSymbol,
+            price: bigIntToDecimalString(price, 10),
+          };
+        })
       );
 
-      const toTokenBalance = await getBalance(
-        addresses[toTokenSymbol].TOKEN_ADDRESS.toLowerCase(),
-        privateKey
-      );
-
-      // Note: getRatio doesn't seem to require a private key in your original function definition.
-      const fromTokenPrice: any = await getRatio(
-        addresses[fromTokenSymbol].PAIR_ADDRESS.toLowerCase(),
-        addresses["WPLS"].TOKEN_ADDRESS,
-        privateKey
-      );
-      const toTokenPrice: any = await getRatio(
-        addresses[toTokenSymbol].PAIR_ADDRESS.toLowerCase(),
-        addresses["WPLS"].TOKEN_ADDRESS,
-        privateKey
-      );
-
-      console.log(
-        `Price for ${fromTokenSymbol}:`,
-        Number(bigIntToDecimalString(toTokenPrice, 10)) /
-          Number(bigIntToDecimalString(fromTokenPrice, 10))
-      );
-      console.log(
-        `Price for ${toTokenSymbol}:`,
-        bigIntToDecimalString(toTokenPrice, 10)
-      );
-
-      // Calculating the price ratio if needed or direct prices
-      priceData[fromTokenSymbol] = {
-        CURRENT_PRICE: fromTokenPrice
-          ? Number(bigIntToDecimalString(toTokenPrice, 10)) /
-            Number(bigIntToDecimalString(fromTokenPrice, 10))
-          : "Price not available",
-        BALANCE: String(fromTokenBalance.your_token_balance),
-        TOKEN_NAME: fromTokenSymbol,
-      };
-
-      priceData[toTokenSymbol] = {
-        CURRENT_PRICE: toTokenPrice
-          ? bigIntToDecimalString(toTokenPrice, 10)
-          : "Price not available",
-        BALANCE: String(toTokenBalance.your_token_balance),
-        TOKEN_NAME: toTokenSymbol,
-      };
+      if (fromTokenSymbol !== toTokenSymbol) {
+        fetchPromises.push(
+          getRatio(
+            addresses[toTokenSymbol].PAIR_ADDRESS.toLowerCase(),
+            addresses[toTokenSymbol].TOKEN_ADDRESS,
+            addresses[toTokenSymbol].WALLET_PRIVATE_KEY
+          ).then((price) => {
+            if (toTokenSymbol === "WPLS") {
+              plsPrice = bigIntToDecimalString(price, 10);
+            }
+            return {
+              symbol: toTokenSymbol,
+              price: bigIntToDecimalString(price, 10),
+            };
+          })
+        );
+      }
     }
 
+    // Wait for all promises to resolve
+    const results = await Promise.all(fetchPromises);
+
+    // Process results
+    for (const result of results) {
+      const tokenBalance = await getBalance(
+        addresses[result.symbol].TOKEN_ADDRESS.toLowerCase(),
+        addresses[result.symbol].WALLET_PRIVATE_KEY
+      );
+
+      priceData[result.symbol] = {
+        CURRENT_PRICE: result.price
+          ? result.symbol === "WPLS"
+            ? result.price
+            : plsPrice * result.price
+          : "Price not available",
+        BALANCE: String(tokenBalance.your_token_balance),
+        TOKEN_NAME: result.symbol,
+      };
+
+      console.log(
+        `Price for ${String(result.symbol)}:`,
+        priceData[result.symbol].CURRENT_PRICE
+      );
+    }
+    0.027862854447137;
     const jsonStr = JSON.stringify(priceData, null, 2);
     await fs.writeFile("priceData.json", jsonStr);
     console.log("Updated price data successfully.");
