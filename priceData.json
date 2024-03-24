@@ -1,17 +1,27 @@
 {
   "DWB": {
-    "CURRENT_PRICE": "34.3434305772",
+    "CURRENT_PRICE": 0.002275411785861174,
     "BALANCE": "0",
     "TOKEN_NAME": "DWB"
   },
   "WPLS": {
-    "CURRENT_PRICE": "0.0001107138",
+    "CURRENT_PRICE": "0.0001111270",
     "BALANCE": "0",
     "TOKEN_NAME": "WPLS"
   },
   "HOA": {
-    "CURRENT_PRICE": "253.8814497682",
+    "CURRENT_PRICE": 4.2266449806757e-7,
     "BALANCE": "0",
     "TOKEN_NAME": "HOA"
+  },
+  "INC": {
+    "CURRENT_PRICE": 2.10725724198e-9,
+    "BALANCE": "0",
+    "TOKEN_NAME": "INC"
+  },
+  "PLSX": {
+    "CURRENT_PRICE": 0.00026048801818286447,
+    "BALANCE": "0",
+    "TOKEN_NAME": "PLSX"
   }
 }

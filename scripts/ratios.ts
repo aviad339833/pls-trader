@@ -23,6 +23,7 @@ export const bigIntToDecimalString = (
   const intPart = fullStr.slice(0, -decimals) || "0";
   const fractPart = fullStr.slice(-decimals).padEnd(decimals, "0");
 
+  // console.log("fullStr", Number(intPart + "." + fractPart));
   return intPart + "." + fractPart;
 };
 
@@ -33,12 +34,13 @@ async function updateRatios() {
     console.log("Loaded trading strategies:", tradingStrategies.length);
 
     for (const strategy of tradingStrategies) {
-      const { pair, walletAddress } = strategy;
+      const { pair } = strategy;
 
       const [fromTokenSymbol, toTokenSymbol] = pair.split("_");
 
       // Ensure you have the correct private keys setup for each wallet in your config
       const privateKey = addresses[fromTokenSymbol].WALLET_PRIVATE_KEY!; // This line seems to be incorrect as private keys should be fetched based on walletAddress, not tokenSymbol.
+
       const fromTokenBalance = await getBalance(
         addresses[fromTokenSymbol].TOKEN_ADDRESS.toLowerCase(),
         privateKey
@@ -49,23 +51,22 @@ async function updateRatios() {
         privateKey
       );
 
-      console.log(
-        `Fetching prices for ${fromTokenSymbol} and ${toTokenSymbol}`
-      );
-
       // Note: getRatio doesn't seem to require a private key in your original function definition.
-      const fromTokenPrice = await getRatio(
+      const fromTokenPrice: any = await getRatio(
         addresses[fromTokenSymbol].PAIR_ADDRESS.toLowerCase(),
+        addresses["WPLS"].TOKEN_ADDRESS,
         privateKey
       );
-      const toTokenPrice = await getRatio(
+      const toTokenPrice: any = await getRatio(
         addresses[toTokenSymbol].PAIR_ADDRESS.toLowerCase(),
+        addresses["WPLS"].TOKEN_ADDRESS,
         privateKey
       );
 
       console.log(
         `Price for ${fromTokenSymbol}:`,
-        bigIntToDecimalString(fromTokenPrice, 10)
+        Number(bigIntToDecimalString(toTokenPrice, 10)) /
+          Number(bigIntToDecimalString(fromTokenPrice, 10))
       );
       console.log(
         `Price for ${toTokenSymbol}:`,
@@ -75,7 +76,8 @@ async function updateRatios() {
       // Calculating the price ratio if needed or direct prices
       priceData[fromTokenSymbol] = {
         CURRENT_PRICE: fromTokenPrice
-          ? bigIntToDecimalString(fromTokenPrice, 10)
+          ? Number(bigIntToDecimalString(toTokenPrice, 10)) /
+            Number(bigIntToDecimalString(fromTokenPrice, 10))
           : "Price not available",
         BALANCE: String(fromTokenBalance.your_token_balance),
         TOKEN_NAME: fromTokenSymbol,

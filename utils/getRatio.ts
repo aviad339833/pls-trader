@@ -4,6 +4,7 @@ import pair_ABI from "../abis/pair_ABI.json";
 
 export const getRatio = async (
   pair_address: string,
+  tokenAddress: string, // Token address for WPLS
   WALLET_PRIVATE_KEY: string
 ) => {
   const provider = new ethers.JsonRpcProvider(LIVE_RPC_URL);
@@ -13,9 +14,16 @@ export const getRatio = async (
 
   try {
     const reserves = await pair_contract.getReserves();
-    let ratio: BigInt;
+    const token0 = await pair_contract.token0();
 
-    ratio = (AMPLIFIER * reserves[1]) / reserves[0];
+    // Determine if WPLS is token0 or token1
+    const isToken0 = token0.toLowerCase() === tokenAddress.toLowerCase();
+
+    // Calculate ratio to always represent 1 WPLS = X of the other token
+    let ratio;
+    ratio = isToken0
+      ? (reserves[1] * AMPLIFIER) / reserves[0]
+      : (reserves[0] * AMPLIFIER) / reserves[1];
 
     return ratio;
   } catch (err) {

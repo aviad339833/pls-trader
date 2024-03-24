@@ -17,6 +17,24 @@
       "stop": 2,
       "stopDirection": "below",
       "strategy": "trailing"
+    },
+    {
+      "walletAddress": "0x242C542156727990d73c5a80145758b202a65d14",
+      "pair": "INC_WPLS",
+      "entry": 0.02800890413691,
+      "termDirection": "below",
+      "stop": 2,
+      "stopDirection": "below",
+      "strategy": "trailing"
+    },
+    {
+      "walletAddress": "0x242C542156727990d73c5a80145758b202a65d14",
+      "pair": "PLSX_WPLS",
+      "entry": 0.02800890413691,
+      "termDirection": "below",
+      "stop": 2,
+      "stopDirection": "below",
+      "strategy": "trailing"
     }
   ]
 }
