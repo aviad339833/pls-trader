@@ -31,7 +31,6 @@ async function updateRatios() {
   let plsPrice: number = 0;
   try {
     const tradingStrategies = await loadTradingConfigurations();
-    console.log("Loaded trading strategies:", tradingStrategies.length);
 
     let fetchPromises = [];
 
@@ -96,15 +95,11 @@ async function updateRatios() {
         BALANCE: String(tokenBalance.your_token_balance),
         TOKEN_NAME: result.symbol,
       };
-
-      console.log(
-        `Price for ${String(result.symbol)}:`,
-        priceData[result.symbol].CURRENT_PRICE
-      );
     }
-    0.027862854447137;
+
     const jsonStr = JSON.stringify(priceData, null, 2);
     await fs.writeFile("priceData.json", jsonStr);
+    console.log(priceData);
     console.log("Updated price data successfully.");
   } catch (error) {
     console.error("Error updating price data:", error);
