@@ -4,15 +4,14 @@ import factoryABI from "../abis/9mm_v3_factory.json"; // Make sure the path is c
 import minimalERC20ABI from "../abis/wpls_ABI.json"; // Make sure the path is correct and ABI includes "name", "symbol", "decimals", and "totalSupply" methods
 import { LIVE_RPC_URL, addresses } from "../config/config";
 import { getRatio } from "../utils/getRatio";
-import { bigIntToDecimalString } from "../utils/utils";
+import {
+  bigIntToDecimalString,
+  checkLiquidity,
+  estimateWPLSTrade,
+} from "../utils/utils";
 const WPLS_ADDRESS = "0xA1077a294dDE1B09bB078844df40758a5D0f9a27".toLowerCase();
 const provider = new ethers.JsonRpcProvider(LIVE_RPC_URL);
 const factoryAddress = process.env.LP_FACTORY_CONTRACT_ADDRESS!;
-
-async function fetchWPLSPrice(): Promise<number> {
-  // Fetch the WPLS/USD price
-  return getRatio(addresses.WPLS.PAIR_ADDRESS);
-}
 
 async function getTokenDetails(tokenAddress: string): Promise<any> {
   const tokenContract = new ethers.Contract(
@@ -56,32 +55,52 @@ async function fetchAndLogLastPoolsWithWPLS() {
         event.args.token0.toLowerCase() === WPLS_ADDRESS ||
         event.args.token1.toLowerCase() === WPLS_ADDRESS
     )
-    .slice(-10);
+    .slice(-10); // Select the last 10 events
 
   for (const event of wplsEvents) {
-    const wplsPriceUSD = await fetchWPLSPrice();
     const otherTokenAddress =
       event.args.token0.toLowerCase() === WPLS_ADDRESS
         ? event.args.token1
         : event.args.token0;
     const otherTokenDetails = await getTokenDetails(otherTokenAddress);
+
+    // Check liquidity before estimating the trade
+    try {
+      await checkLiquidity(WPLS_ADDRESS, otherTokenAddress);
+    } catch (error) {
+      console.error(
+        `Skipping pool ${event.args.pool} due to insufficient liquidity`
+      );
+      continue; // Skip to the next event if liquidity is insufficient
+    }
+
+    // Estimate how much of the other token 1 WPLS can buy
+    const estimatedTradeAmount = await estimateWPLSTrade(otherTokenAddress);
+
     console.log(`Pool Created: ${event.args.pool}`);
     console.log(
       `- Other Token: ${otherTokenDetails.symbol} (${otherTokenDetails.name})`
     );
     console.log(`- TOKEN ADDRESS: ${otherTokenAddress}`);
     console.log(`- Decimals: ${otherTokenDetails.decimals}`);
-
     console.log(
       `- Total Supply: ${bigIntToDecimalString(
         otherTokenDetails.totalSupply,
         otherTokenDetails.decimals
       ).toLocaleString()}`
     );
-
     console.log(`- Fee: ${event.args.fee}`);
     console.log(`- Tick Spacing: ${event.args.tickSpacing}`);
-    console.log(`- WPLS price: ${wplsPriceUSD}`);
+    if (estimatedTradeAmount) {
+      console.log(
+        `- 1 WPLS can buy approximately ${ethers.formatUnits(
+          estimatedTradeAmount,
+          otherTokenDetails.decimals
+        )} of ${otherTokenDetails.symbol}`
+      );
+    } else {
+      console.log("- Unable to estimate trade amount.");
+    }
     console.log("---");
   }
 }
