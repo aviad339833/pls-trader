@@ -94,11 +94,19 @@ export async function estimateGasCost(
     throw new Error(`Method ${methodName} does not exist on the contract`);
   }
 
-  // Estimate gas cost for the transaction
-  const estimatedGas = await method.estimateGas(...args);
-
-  return estimatedGas.toNumber();
+  try {
+    // Estimate gas cost for the transaction
+    const estimatedGas = await method.estimateGas(...args);
+    // Return the estimated gas cost as a number
+    return estimatedGas.toNumber();
+  } catch (error) {
+    // Handle the case where gas estimation fails
+    console.error(`Gas estimation failed for ${methodName}:`, error);
+    // Return a default gas estimation value (e.g., 1 million gas)
+    return 1000000; // Adjust this value as needed based on your requirements
+  }
 }
+
 export async function checkLiquidity(
   WPLSAddress: string,
   otherTokenAddress: string
