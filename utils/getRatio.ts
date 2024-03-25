@@ -1,32 +1,22 @@
-import { ethers } from "hardhat";
-import { AMPLIFIER, LIVE_RPC_URL } from "../config/config";
+import { ethers } from "ethers";
+import { LIVE_RPC_URL } from "../config/config";
 import pair_ABI from "../abis/pair_ABI.json";
 
-export const getRatio = async (
-  pair_address: string,
-  tokenAddress: string, // Token address for WPLS
-  WALLET_PRIVATE_KEY: string
-) => {
+export const getRatio = async (pair_address: string): Promise<number> => {
   const provider = new ethers.JsonRpcProvider(LIVE_RPC_URL);
-  const signer = new ethers.Wallet(WALLET_PRIVATE_KEY, provider);
-
-  const pair_contract = new ethers.Contract(pair_address, pair_ABI, signer);
+  const pair_contract = new ethers.Contract(pair_address, pair_ABI, provider);
 
   try {
     const reserves = await pair_contract.getReserves();
-    const token0 = await pair_contract.token0();
+    const reserve0 = ethers.formatUnits(reserves[0], 18); // Assuming 18 decimals, adjust as needed
+    const reserve1 = ethers.formatUnits(reserves[1], 18); // Assuming 18 decimals, adjust as needed
 
-    // Determine if WPLS is token0 or token1
-    const isToken0 = token0.toLowerCase() === tokenAddress.toLowerCase();
-
-    // Calculate ratio to always represent 1 WPLS = X of the other token
-    let ratio;
-    ratio = isToken0
-      ? (reserves[1] * AMPLIFIER) / reserves[0]
-      : (reserves[0] * AMPLIFIER) / reserves[1];
+    // The ratio of reserves (reserve1 / reserve0) gives you how much of token1 you get for 1 unit of token0
+    const ratio = parseFloat(reserve1) / parseFloat(reserve0);
 
     return ratio;
-  } catch (err) {
-    console.error("Error fetching ratio:", err);
+  } catch (error) {
+    console.error("Error fetching ratio:", error);
+    return 0; // or throw an error or return an appropriate error value
   }
 };
