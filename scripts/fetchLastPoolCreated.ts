@@ -4,14 +4,13 @@ import factoryABI from "../abis/9mm_v3_factory.json"; // Make sure the path is c
 import minimalERC20ABI from "../abis/wpls_ABI.json"; // Make sure the path is correct and ABI includes "name", "symbol", "decimals", and "totalSupply" methods
 import { LIVE_RPC_URL, addresses } from "../config/config";
 import { getRatio } from "../utils/getRatio";
-
+import { bigIntToDecimalString } from "../utils/utils";
 const WPLS_ADDRESS = "0xA1077a294dDE1B09bB078844df40758a5D0f9a27".toLowerCase();
 const provider = new ethers.JsonRpcProvider(LIVE_RPC_URL);
 const factoryAddress = process.env.LP_FACTORY_CONTRACT_ADDRESS!;
 
 async function fetchWPLSPrice(): Promise<number> {
-    // Fetch the WPLS/USD price
-    console.log("getRatio(addresses.WPLS.PAIR_ADDRESS);,",getRatio(addresses.WPLS.PAIR_ADDRESS);)
+  // Fetch the WPLS/USD price
   return getRatio(addresses.WPLS.PAIR_ADDRESS);
 }
 
@@ -28,7 +27,12 @@ async function getTokenDetails(tokenAddress: string): Promise<any> {
       tokenContract.decimals(),
       tokenContract.totalSupply(),
     ]);
-    return { name, symbol, decimals, totalSupply: totalSupply.toString() };
+    return {
+      name,
+      symbol,
+      decimals: decimals.toString(),
+      totalSupply: totalSupply.toString(),
+    };
   } catch (error) {
     console.error(
       `Error fetching details for token at ${tokenAddress}:`,
@@ -44,15 +48,8 @@ async function fetchAndLogLastPoolsWithWPLS() {
     factoryABI,
     provider
   );
-  const filter = factoryContract.filters.PoolCreated(
-    null,
-    null,
-    null,
-    null,
-    null
-  );
+  const filter = factoryContract.filters.PoolCreated();
   const events = await factoryContract.queryFilter(filter, -10000);
-  // Filter for events involving WPLS and take the last 10
   const wplsEvents = events
     .filter(
       (event) =>
@@ -72,9 +69,16 @@ async function fetchAndLogLastPoolsWithWPLS() {
     console.log(
       `- Other Token: ${otherTokenDetails.symbol} (${otherTokenDetails.name})`
     );
-    console.log(`- TOKEN ADDRESS: ${otherTokenAddress} `);
+    console.log(`- TOKEN ADDRESS: ${otherTokenAddress}`);
     console.log(`- Decimals: ${otherTokenDetails.decimals}`);
-    console.log(`- Total Supply: ${otherTokenDetails.totalSupply}`);
+
+    console.log(
+      `- Total Supply: ${bigIntToDecimalString(
+        otherTokenDetails.totalSupply,
+        otherTokenDetails.decimals
+      ).toLocaleString()}`
+    );
+
     console.log(`- Fee: ${event.args.fee}`);
     console.log(`- Tick Spacing: ${event.args.tickSpacing}`);
     console.log(`- WPLS price: ${wplsPriceUSD}`);
@@ -103,7 +107,12 @@ async function listenForNewPools() {
           `- Other Token: ${otherTokenDetails.symbol} (${otherTokenDetails.name})`
         );
         console.log(`- Decimals: ${otherTokenDetails.decimals}`);
-        console.log(`- Total Supply: ${otherTokenDetails.totalSupply}`);
+        console.log(
+          `- Total Supply: ${bigIntToDecimalString(
+            otherTokenDetails.totalSupply,
+            otherTokenDetails.decimals
+          ).toLocaleString()}`
+        );
         console.log(`- Fee: ${fee}`);
         console.log("---");
       }
