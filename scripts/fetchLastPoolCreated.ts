@@ -61,27 +61,25 @@ async function fetchAndLogLastPoolsWithWPLS() {
     }
     uniquePools.add(poolAddress);
 
-    const token0 = await getTokenDetails(event.args.token0);
-    const token1 = await getTokenDetails(event.args.token1);
+    // Retrieve details for both tokens
+    const token0Details = await getTokenDetails(event.args.token0);
+    const token1Details = await getTokenDetails(event.args.token1);
 
-    console.log("");
-    console.log("");
-    console.log("event.args.token0", event.args.token0);
-    console.log("Token0 Details", token0.symbol);
+    // Check if either token is WPLS by symbol
+    let isWPLSPair =
+      token0Details.symbol === "WPLS" || token1Details.symbol === "WPLS";
+    let otherTokenDetails =
+      token0Details.symbol === "WPLS" ? token1Details : token0Details;
 
-    console.log("event.args.token1", event.args.token1);
-    console.log("Token1 Details", token1.symbol);
-    console.log("");
-    console.log("");
+    if (!isWPLSPair) {
+      // If neither token is WPLS, skip this pool
+      continue;
+    }
 
-    const otherTokenAddress =
-      event.args.token0.toLowerCase() === WPLS_ADDRESS
-        ? event.args.token1
-        : event.args.token0;
-    const otherTokenDetails = await getTokenDetails(otherTokenAddress);
+    console.log(`Found WPLS pair: ${poolAddress}`);
 
     try {
-      await checkLiquidity(WPLS_ADDRESS, otherTokenAddress);
+      await checkLiquidity(WPLS_ADDRESS, otherTokenDetails.address);
       foundPools++;
 
       // Call getRatio for the current pool
@@ -93,7 +91,7 @@ async function fetchAndLogLastPoolsWithWPLS() {
       console.log(
         `- TOKEN: ${otherTokenDetails.symbol} (${otherTokenDetails.name})`
       );
-      console.log(`- TOKEN ADDRESS: ${otherTokenAddress}`);
+      console.log(`- TOKEN ADDRESS: ${otherTokenDetails.address}`);
       console.log(`- Decimals: ${otherTokenDetails.decimals}`);
       console.log(
         `- Total Supply: ${bigIntToDecimalString(
@@ -105,7 +103,7 @@ async function fetchAndLogLastPoolsWithWPLS() {
       console.log(`- Tick Spacing: ${event.args.tickSpacing}`);
 
       // Fetch timestamp for the block in which the event occurred
-      const block = await provider.getBlock(event.blockNumber);
+      const block: any = await provider.getBlock(event.blockNumber);
       const timestamp = block.timestamp;
 
       console.log(`- Pool created at: ${new Date(timestamp * 1000)}`);
@@ -117,7 +115,9 @@ async function fetchAndLogLastPoolsWithWPLS() {
       );
       console.log(`- Pool created ${daysAgo} days ago`);
 
-      const estimatedTradeAmount = await estimateWPLSTrade(otherTokenAddress);
+      const estimatedTradeAmount = await estimateWPLSTrade(
+        otherTokenDetails.address
+      );
 
       if (estimatedTradeAmount) {
         console.log(
