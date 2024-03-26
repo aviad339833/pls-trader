@@ -1,5 +1,5 @@
 import { LIVE_RPC_URL, addresses } from "../config/config";
-import { getRatio } from "./getRatio";
+import { getRatio } from "../scripts/getRatio";
 import router_ABI from "../abis/router_ABI.json";
 import { ethers } from "ethers";
 
@@ -101,7 +101,7 @@ export async function estimateGasCost(
     return estimatedGas.toNumber();
   } catch (error) {
     // Handle the case where gas estimation fails
-    console.error(`Gas estimation failed for ${methodName}:`, error);
+    console.error(`Gas estimation failed for ${methodName}:`);
     // Return a default gas estimation value (e.g., 1 million gas)
     return 1000000; // Adjust this value as needed based on your requirements
   }
@@ -148,10 +148,7 @@ export async function checkLiquidity(
 
     console.log("Swap successful. Liquidity exists in the pool for WPLS.");
   } catch (error) {
-    console.error(
-      "Swap failed. Insufficient liquidity in the pool for WPLS.",
-      error
-    );
+    console.error("Swap failed. Insufficient liquidity in the pool for WPLS.");
     throw new Error("Insufficient liquidity");
   }
 }

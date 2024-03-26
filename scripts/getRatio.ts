@@ -14,9 +14,14 @@ export const getRatio = async (pair_address: string): Promise<number> => {
     // The ratio of reserves (reserve1 / reserve0) gives you how much of token1 you get for 1 unit of token0
     const ratio = parseFloat(reserve1) / parseFloat(reserve0);
 
+    // console.log("parseFloat(reserve1) , parseFloat(reserve0)");
+    // console.log(parseFloat(reserve1), parseFloat(reserve0));
+    // console.log(ratio);
     return ratio;
   } catch (error) {
     console.error("Error fetching ratio:", error);
     return 0; // or throw an error or return an appropriate error value
   }
 };
+
+// getRatio("0x5A9780Bfe63f3ec57f01b087cD65BD656C9034A8");

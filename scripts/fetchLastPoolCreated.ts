@@ -3,7 +3,7 @@ import { ethers } from "ethers";
 import factoryABI from "../abis/9mm_v3_factory.json"; // Make sure the path is correct
 import minimalERC20ABI from "../abis/wpls_ABI.json"; // Make sure the path is correct and ABI includes "name", "symbol", "decimals", and "totalSupply" methods
 import { LIVE_RPC_URL, addresses } from "../config/config";
-import { getRatio } from "../utils/getRatio";
+import { getRatio } from "./getRatio";
 import {
   bigIntToDecimalString,
   checkLiquidity,
@@ -42,83 +42,103 @@ async function getTokenDetails(tokenAddress: string): Promise<any> {
 }
 
 async function fetchAndLogLastPoolsWithWPLS() {
+  const provider = new ethers.JsonRpcProvider(LIVE_RPC_URL); // Move provider initialization here
   const factoryContract = new ethers.Contract(
     factoryAddress,
     factoryABI,
     provider
   );
   const filter = factoryContract.filters.PoolCreated();
-  const events = await factoryContract.queryFilter(filter, -10000);
-  let index = events.length - 1;
-  let foundPoolWithLiquidity = false;
+  const events = await factoryContract.queryFilter(filter, -10000); // Fetch a larger number of events to ensure we capture enough pools
+  const uniquePools = new Set();
+  let foundPools = 0;
 
-  while (index >= 0 && !foundPoolWithLiquidity) {
-    const event = events[index];
+  for (let i = events.length - 1; i >= 0 && foundPools < 30; i--) {
+    const event = events[i];
+    const poolAddress = event.args.pool;
+    if (uniquePools.has(poolAddress)) {
+      continue; // Skip if we've already processed this pool
+    }
+    uniquePools.add(poolAddress);
+
+    const token0 = await getTokenDetails(event.args.token0);
+    const token1 = await getTokenDetails(event.args.token1);
+
+    console.log("");
+    console.log("");
+    console.log("event.args.token0", event.args.token0);
+    console.log("Token0 Details", token0.symbol);
+
+    console.log("event.args.token1", event.args.token1);
+    console.log("Token1 Details", token1.symbol);
+    console.log("");
+    console.log("");
+
     const otherTokenAddress =
       event.args.token0.toLowerCase() === WPLS_ADDRESS
         ? event.args.token1
         : event.args.token0;
     const otherTokenDetails = await getTokenDetails(otherTokenAddress);
 
-    // Log pool information here
-    console.log(`Pool Created: ${event.args.pool}`);
-    console.log(
-      `- Other Token: ${otherTokenDetails.symbol} (${otherTokenDetails.name})`
-    );
-    console.log(`- TOKEN ADDRESS: ${otherTokenAddress}`);
-    console.log(`- Decimals: ${otherTokenDetails.decimals}`);
-    console.log(
-      `- Total Supply: ${bigIntToDecimalString(
-        otherTokenDetails.totalSupply,
-        otherTokenDetails.decimals
-      ).toLocaleString()}`
-    );
-    console.log(`- Fee: ${event.args.fee}`);
-    console.log(`- Tick Spacing: ${event.args.tickSpacing}`);
-
-    // Fetch timestamp for the block in which the event occurred
-    const block = await provider.getBlock(event.blockNumber);
-    const timestamp = block.timestamp;
-
-    console.log(`- Pool created at: ${new Date(timestamp * 1000)}`);
-
-    // Calculate the number of days ago the pool was created
-    const currentDate = new Date();
-    const daysAgo = Math.floor(
-      (currentDate.getTime() - timestamp * 1000) / (1000 * 3600 * 24)
-    );
-    console.log(`- Pool created ${daysAgo} days ago`);
-
     try {
       await checkLiquidity(WPLS_ADDRESS, otherTokenAddress);
-      foundPoolWithLiquidity = true;
+      foundPools++;
+
+      // Call getRatio for the current pool
+      const ratio = await getRatio(poolAddress);
+      console.log(`Ratio for pool ${poolAddress}: ${ratio}`);
+
+      // Log pool information here
+      console.log(`Pool Created: ${poolAddress}`);
+      console.log(
+        `- TOKEN: ${otherTokenDetails.symbol} (${otherTokenDetails.name})`
+      );
+      console.log(`- TOKEN ADDRESS: ${otherTokenAddress}`);
+      console.log(`- Decimals: ${otherTokenDetails.decimals}`);
+      console.log(
+        `- Total Supply: ${bigIntToDecimalString(
+          otherTokenDetails.totalSupply,
+          otherTokenDetails.decimals
+        ).toLocaleString()}`
+      );
+      console.log(`- Fee: ${event.args.fee}`);
+      console.log(`- Tick Spacing: ${event.args.tickSpacing}`);
+
+      // Fetch timestamp for the block in which the event occurred
+      const block = await provider.getBlock(event.blockNumber);
+      const timestamp = block.timestamp;
+
+      console.log(`- Pool created at: ${new Date(timestamp * 1000)}`);
+
+      // Calculate the number of days ago the pool was created
+      const currentDate = new Date();
+      const daysAgo = Math.floor(
+        (currentDate.getTime() - timestamp * 1000) / (1000 * 3600 * 24)
+      );
+      console.log(`- Pool created ${daysAgo} days ago`);
+
+      const estimatedTradeAmount = await estimateWPLSTrade(otherTokenAddress);
+
+      if (estimatedTradeAmount) {
+        console.log(
+          `- 1 WPLS can buy approximately ${ethers.formatUnits(
+            estimatedTradeAmount,
+            otherTokenDetails.decimals
+          )} of ${otherTokenDetails.symbol}`
+        );
+      } else {
+        console.log("- Unable to estimate trade amount.");
+      }
+      console.log("---");
     } catch (error) {
       console.error(
-        `Skipping pool ${event.args.pool} due to insufficient liquidity`
+        `Swap failed. Insufficient liquidity in the pool for ${otherTokenDetails.symbol}.`
       );
-      index--; // Move to the previous event
-      continue;
     }
-
-    const estimatedTradeAmount = await estimateWPLSTrade(otherTokenAddress);
-
-    if (estimatedTradeAmount) {
-      console.log(
-        `- 1 WPLS can buy approximately ${ethers.formatUnits(
-          estimatedTradeAmount,
-          otherTokenDetails.decimals
-        )} of ${otherTokenDetails.symbol}`
-      );
-    } else {
-      console.log("- Unable to estimate trade amount.");
-    }
-    console.log("---");
-
-    index--; // Move to the previous event
   }
 
-  if (!foundPoolWithLiquidity) {
-    console.log("No pool with liquidity found.");
+  if (foundPools === 0) {
+    console.log("No new pools found in the last 30 pools created.");
   }
 }
 

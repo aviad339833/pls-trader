@@ -1,6 +1,6 @@
 import fs from "fs/promises";
 import { getAllBalances } from "../utils/getAllBalances";
-import { getRatio } from "../utils/getRatio";
+import { getRatio } from "./getRatio";
 import { AMPLIFIER, addresses } from "../config/config";
 import { getPLSWalletBalance } from "../utils/getPLSWalletBalance";
 import { getBalance } from "../utils/getTokenBlance";
