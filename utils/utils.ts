@@ -2,6 +2,7 @@ import { LIVE_RPC_URL, addresses } from "../config/config";
 import { getRatio } from "../scripts/getRatio";
 import router_ABI from "../abis/router_ABI.json";
 import { ethers } from "ethers";
+import minimalERC20ABI from "../abis/wpls_ABI.json";
 
 export const ROUTER_ADDRESS = process.env.ROUTER_ADDRESS!;
 
@@ -107,10 +108,7 @@ export async function estimateGasCost(
   }
 }
 
-export async function checkLiquidity(
-  WPLSAddress: string,
-  otherTokenAddress: string
-) {
+export async function checkLiquidity(token0: string, token1: string) {
   const provider = new ethers.JsonRpcProvider(LIVE_RPC_URL); // Initialize provider
   const signer = new ethers.Wallet(process.env.LIVE_WALLET_KEY!, provider); // Initialize wallet
   const routerContract = new ethers.Contract(
@@ -129,7 +127,7 @@ export async function checkLiquidity(
       [
         amountIn,
         0, // set minimum amount out as needed
-        [WPLSAddress, otherTokenAddress],
+        [token0, token1],
         signer.address,
         Date.now() + 1000 * 60 * 10, // deadline in 10 minutes
       ]
@@ -141,14 +139,83 @@ export async function checkLiquidity(
     const tx = await routerContract.swapExactTokensForTokens(
       amountIn,
       0, // set minimum amount out as needed
-      [WPLSAddress, otherTokenAddress],
+      [token0, token1],
       signer.address,
       Date.now() + 1000 * 60 * 10 // deadline in 10 minutes
     );
 
     console.log("Swap successful. Liquidity exists in the pool for WPLS.");
   } catch (error) {
-    console.error("Swap failed. Insufficient liquidity in the pool for WPLS.");
     throw new Error("Insufficient liquidity");
+  }
+}
+
+export function logTokenDetails(token0: any, token1: any) {
+  // Assuming the address for WPLS is defined somewhere like this
+  const plsTokenAddress = addresses.WPLS.TOKEN_ADDRESS.toLocaleLowerCase();
+
+  const totalSuply0 = bigIntToDecimalString(
+    token0.totalSupply,
+    token0.decimals
+  );
+  const totalSuply1 = bigIntToDecimalString(
+    token1.totalSupply,
+    token1.decimals
+  );
+  console.log("Token 0 Details", token0);
+  console.log("Token 1 Details", token1);
+
+  if (plsTokenAddress === token1.tokenAddress.toLowerCase()) {
+    console.log(
+      `TOKEN PAIR: ${token0.symbol} (${token0.decimals}) / ${token1.symbol} (${token1.decimals})`
+    );
+    console.log(
+      `Supply: ${totalSuply0.toLocaleString()} / ${totalSuply0.toLocaleString()}`
+    );
+    console.log(`RATIO: ${totalSuply0 / totalSuply1} `);
+  }
+  if (plsTokenAddress === token0.tokenAddress.toLowerCase()) {
+    console.log(
+      `TOKEN PAIR: ${token1.symbol} (${token1.decimals})/${token0.symbol} (${token0.decimals})`
+    );
+    console.log(
+      `Supply: ${totalSuply0.toLocaleString()} ${totalSuply1.toLocaleString()}`
+    );
+    console.log(`RATIO: ${totalSuply1 / totalSuply0} `);
+  }
+
+  console.log(`TOKEN ADDRESS (${token0.symbol}) : ${token0.tokenAddress}`);
+  console.log(`TOKEN ADDRESS (${token1.symbol}) : ${token1.tokenAddress}`);
+}
+
+export async function getTokenDetails(
+  tokenAddress: string,
+  provider: any
+): Promise<any> {
+  const tokenContract = new ethers.Contract(
+    tokenAddress,
+    minimalERC20ABI,
+    provider
+  );
+  try {
+    const [name, symbol, decimals, totalSupply] = await Promise.all([
+      tokenContract.name(),
+      tokenContract.symbol(),
+      tokenContract.decimals(),
+      tokenContract.totalSupply(),
+    ]);
+    return {
+      tokenAddress: tokenAddress,
+      name,
+      symbol,
+      decimals: decimals.toString(),
+      totalSupply: totalSupply.toString(),
+    };
+  } catch (error) {
+    console.error(
+      `Error fetching details for token at ${tokenAddress}:`,
+      error
+    );
+    return null;
   }
 }
