@@ -11,6 +11,10 @@ import {
   getTokenDetails,
   logTokenDetails,
 } from "../utils/utils";
+import {
+  LpTestResult,
+  logSuccessfulLpTest,
+} from "../utils/logSuccessfulLpTest";
 const WPLS_ADDRESS = addresses.WPLS.TOKEN_ADDRESS.toLowerCase();
 const provider = new ethers.JsonRpcProvider(LIVE_RPC_URL);
 const factoryAddress = process.env.LP_FACTORY_CONTRACT_ADDRESS!;
@@ -22,6 +26,7 @@ async function fetchAndLogLastPoolsWithWPLS(plsPrice: number) {
     factoryABI,
     provider
   );
+
   const filter = factoryContract.filters.PoolCreated();
   const events = await factoryContract.queryFilter(filter, -10000); // Fetch a larger number of events to ensure we capture enough pools
   const uniquePools = new Set();
@@ -38,14 +43,25 @@ async function fetchAndLogLastPoolsWithWPLS(plsPrice: number) {
     const token0 = await getTokenDetails(event.token0, provider);
     const token1 = await getTokenDetails(event.token1, provider);
     // const otherTokenDetails = await getTokenDetails(otherTokenAddress);
-
+    logTokenDetails(token0, token1);
     try {
       await checkLiquidity(event.token1, event.token0);
       foundPools++;
 
+      const result: LpTestResult = {
+        timestamp: new Date(),
+        tokenPair: `${token0.symbol}/${token1.symbol}`, // Or any format you prefer
+        transactionHash: "N/A", // Since this is historical data, might not have a direct transaction hash
+        details: {
+          poolAddress,
+          liquidityCheck: "Success",
+          // Add any other details relevant to your application
+        },
+      };
+      await logSuccessfulLpTest(result);
       // Log pool information here
       console.log(`\n\n POOL CREATED: ${poolAddress}`);
-      logTokenDetails(token0, token1);
+
       console.log(`\n\n\n`);
     } catch (error) {
       console.error(

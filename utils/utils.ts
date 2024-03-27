@@ -120,21 +120,6 @@ export async function checkLiquidity(token0: string, token1: string) {
   const amountIn = ethers.parseUnits("0.01", 18); // Small amount for testing liquidity
 
   try {
-    // Estimate gas cost for the swap transaction
-    const gasCost = await estimateGasCost(
-      routerContract,
-      "swapExactTokensForTokens",
-      [
-        amountIn,
-        0, // set minimum amount out as needed
-        [token0, token1],
-        signer.address,
-        Date.now() + 1000 * 60 * 10, // deadline in 10 minutes
-      ]
-    );
-
-    console.log("Estimated gas cost for swap transaction:", gasCost);
-
     // Attempt a swap from WPLS to the other token with a small amount to check liquidity
     const tx = await routerContract.swapExactTokensForTokens(
       amountIn,
@@ -151,41 +136,43 @@ export async function checkLiquidity(token0: string, token1: string) {
 }
 
 export function logTokenDetails(token0: any, token1: any) {
-  // Assuming the address for WPLS is defined somewhere like this
   const plsTokenAddress = addresses.WPLS.TOKEN_ADDRESS.toLocaleLowerCase();
 
-  const totalSuply0 = bigIntToDecimalString(
-    token0.totalSupply,
-    token0.decimals
-  );
-  const totalSuply1 = bigIntToDecimalString(
-    token1.totalSupply,
-    token1.decimals
-  );
-  console.log("Token 0 Details", token0);
-  console.log("Token 1 Details", token1);
+  // Convert big integer to decimal string, considering decimals
+  const formatSupply = (token: any) =>
+    Number(bigIntToDecimalString(token.totalSupply, token.decimals));
 
-  if (plsTokenAddress === token1.tokenAddress.toLowerCase()) {
-    console.log(
-      `TOKEN PAIR: ${token0.symbol} (${token0.decimals}) / ${token1.symbol} (${token1.decimals})`
-    );
-    console.log(
-      `Supply: ${totalSuply0.toLocaleString()} / ${totalSuply0.toLocaleString()}`
-    );
-    console.log(`RATIO: ${totalSuply0 / totalSuply1} `);
-  }
-  if (plsTokenAddress === token0.tokenAddress.toLowerCase()) {
-    console.log(
-      `TOKEN PAIR: ${token1.symbol} (${token1.decimals})/${token0.symbol} (${token0.decimals})`
-    );
-    console.log(
-      `Supply: ${totalSuply0.toLocaleString()} ${totalSuply1.toLocaleString()}`
-    );
-    console.log(`RATIO: ${totalSuply1 / totalSuply0} `);
+  const totalSupply0 = formatSupply(token0);
+  const totalSupply1 = formatSupply(token1);
+
+  // Determine which token is WPLS, if any
+  const isToken0WPLS = token0.tokenAddress.toLowerCase() === plsTokenAddress;
+  const isToken1WPLS = token1.tokenAddress.toLowerCase() === plsTokenAddress;
+
+  let ratio;
+  if (isToken0WPLS) {
+    // If token0 is WPLS, calculate how much of token1 one WPLS can buy
+    ratio = totalSupply1 / totalSupply0;
+    console.log(`1 ${token0.symbol} can buy ${ratio} ${token1.symbol}`);
+  } else if (isToken1WPLS) {
+    // If token1 is WPLS, calculate how much of token0 one WPLS can buy
+    ratio = totalSupply0 / totalSupply1;
+    console.log(`1 ${token1.symbol} can buy ${ratio} ${token0.symbol}`);
+  } else {
+    // If neither token is WPLS, just compare their supplies
+    ratio = totalSupply1 / totalSupply0;
+    console.log(`1 ${token0.symbol} can buy ${ratio} ${token1.symbol}`);
   }
 
-  console.log(`TOKEN ADDRESS (${token0.symbol}) : ${token0.tokenAddress}`);
-  console.log(`TOKEN ADDRESS (${token1.symbol}) : ${token1.tokenAddress}`);
+  console.log(
+    `TOKEN PAIR: ${token0.symbol} (${token0.decimals}) / ${token1.symbol} (${token1.decimals})`
+  );
+  console.log(
+    `Supply: ${totalSupply0.toLocaleString()} / ${totalSupply1.toLocaleString()}`
+  );
+  console.log(`RATIO: ${ratio}`);
+  console.log(`TOKEN ADDRESS (${token0.symbol}): ${token0.tokenAddress}`);
+  console.log(`TOKEN ADDRESS (${token1.symbol}): ${token1.tokenAddress}`);
 }
 
 export async function getTokenDetails(
