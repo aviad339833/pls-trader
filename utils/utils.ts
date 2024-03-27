@@ -27,63 +27,6 @@ export function delay(ms: any) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-// Function to attempt fetching the ratio with retries and exponential backoff
-export async function fetchRatioWithRetry(
-  pair_address: string,
-  retries = 5,
-  backoff = 1000
-) {
-  let attempt = 0;
-  while (attempt < retries) {
-    try {
-      const ratio = await getRatio(pair_address);
-      if (ratio > 0) {
-        // Check for a valid ratio
-        return ratio;
-      }
-    } catch (error) {
-      console.error(
-        `Retry attempt ${attempt + 1} for pair address ${pair_address} failed:`,
-        error
-      );
-    }
-    await delay(backoff * 2 ** attempt);
-    attempt++;
-  }
-  throw new Error(`Failed to fetch ratio after ${retries} attempts`);
-}
-
-export async function estimateWPLSTrade(
-  toTokenAddress: string,
-  amountIn: string = "1"
-) {
-  const provider = new ethers.JsonRpcProvider(LIVE_RPC_URL); // Initialize provider
-  const signer = new ethers.Wallet(process.env.LIVE_WALLET_KEY!, provider); // Initialize wallet
-  const routerContract = new ethers.Contract(
-    ROUTER_ADDRESS,
-    router_ABI,
-    signer
-  ); // Initialize router contract
-
-  const WPLSAddress = addresses.WPLS.TOKEN_ADDRESS; // Replace with actual WPLS contract address
-  const oneWPLSToWei = ethers.parseUnits(amountIn, 18); // Convert 1 WPLS to Wei
-
-  try {
-    // Check liquidity before estimating the trade
-    await checkLiquidity(WPLSAddress, toTokenAddress);
-
-    // If liquidity check passes, proceed to estimate the trade
-    const amountsOut = await routerContract.getAmountsOut(oneWPLSToWei, [
-      WPLSAddress,
-      toTokenAddress,
-    ]);
-    return amountsOut[1]; // Return the amount of the target token you'd get for the input WPLS
-  } catch (error) {
-    console.error("Error estimating WPLS trade:", error);
-    throw error; // Rethrow the error or handle it as needed
-  }
-}
-
 export async function estimateGasCost(
   contract: ethers.Contract,
   methodName: string,

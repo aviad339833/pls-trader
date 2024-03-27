@@ -1,38 +1,11 @@
 import { readFile, writeFile } from "fs/promises"; // Note: Now importing readFile from 'fs/promises' as well
 import { join } from "path";
 
-interface LpTestResult {
+export interface LpTestResult {
   timestamp: Date;
   tokenPair: string;
-  token0Address: string;
-  token1Address: string;
-  token0Decimals: number;
-  token1Decimals: number;
-  supply: {
-    token0: string;
-    token1: string;
-  };
-  ratio: string;
   transactionHash: string;
-  poolAddress: string;
-  transactionDetails: {
-    blockNumber: number | null; // You mentioned this as null, consider updating when available
-    blockHash: string | null; // Similarly, consider updating when available
-    from: string;
-    to: string;
-    nonce: number;
-    gasLimit: bigint;
-    gasPrice: bigint | undefined; // Gas Price might be undefined for EIP-1559 transactions
-    maxPriorityFeePerGas: bigint;
-    maxFeePerGas: bigint;
-    value: bigint;
-    chainId: bigint;
-    data: string;
-  };
-  details: {
-    swapSuccess: boolean;
-    liquidityCheck: string;
-  };
+  details: any; // Extend this to match the data structure you need
 }
 
 const logFilePath = join(__dirname, "successfulLpTests.json");

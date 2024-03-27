@@ -1,38 +1,63 @@
 import { ethers } from "ethers";
 import { LIVE_RPC_URL } from "../config/config";
-// Import the Uniswap V3 Pool ABI from the installed package
-const {
-  abi: v3PoolABI,
-} = require("@uniswap/v3-core/artifacts/contracts/UniswapV3Pool.sol/UniswapV3Pool.json");
+const v3PoolABI =
+  require("@uniswap/v3-core/artifacts/contracts/UniswapV3Pool.sol/UniswapV3Pool.json").abi;
 
-export const getRatio = async (pool_address: string): Promise<number> => {
+export const getRatio = async (
+  pool_address: string,
+  token0: any,
+  token1: any
+) => {
   const provider = new ethers.JsonRpcProvider(LIVE_RPC_URL);
   const pool_contract = new ethers.Contract(pool_address, v3PoolABI, provider);
 
+  console.log(`Fetching price ratio for pool: ${pool_address}`);
+  console.log(
+    `Token0 (${token0.symbol}) Address: ${token0.tokenAddress} with ${token0.decimals} decimals`
+  );
+  console.log(
+    `Token1 (${token1.symbol}) Address: ${token1.tokenAddress} with ${token1.decimals} decimals`
+  );
+
   try {
     const slot0 = await pool_contract.slot0();
-    const sqrtPriceX96 = slot0.sqrtPriceX96;
-    // Convert to bigint if necessary
-    const sqrtPriceX96AsBigInt = BigInt(sqrtPriceX96.toString());
-    const price = sqrtPriceX96AsBigInt ** 2n / 2n ** 192n; // Price of token1 in terms of token0
+    const sqrtPriceX96 = BigInt(slot0.sqrtPriceX96.toString());
+    console.log(`sqrtPriceX96: ${sqrtPriceX96.toString()}`);
 
-    // Convert bigint result back to a number for easier handling/display
-    const priceNumber = Number(price) / 2 ** 96; // Divide by 2 ** 96 to adjust for precision
+    // Calculate price of token0 in terms of token1
+    const rawPrice = sqrtPriceX96 ** 2n;
+    const priceOfToken0InTermsOfToken1 = BigInt(2) ** (96n * 2n) / rawPrice;
+    console.log(
+      `Raw price (token0 per token1) before adjustments: ${priceOfToken0InTermsOfToken1.toString()}`
+    );
 
-    console.log("The price of token1 in terms of token0 is:", priceNumber);
+    // Adjust for token decimals
+    const adjustedPriceForTokenDecimals =
+      (priceOfToken0InTermsOfToken1 * BigInt(10) ** BigInt(token1.decimals)) /
+      BigInt(10) ** BigInt(token0.decimals);
+    console.log(
+      `Adjusted price for decimals: ${adjustedPriceForTokenDecimals.toString()}`
+    );
 
-    // If you need the price of token0 in terms of token1, take the reciprocal
-    const priceOfToken0 = 1 / priceNumber;
-    console.log("The price of token0 in terms of token1 is:", priceOfToken0);
+    // Convert to a readable number format
+    const readablePrice =
+      Number(adjustedPriceForTokenDecimals) / 10 ** token1.decimals;
+    console.log(
+      `Readable price: 1 ${token0.symbol} = ${readablePrice} ${token1.symbol}`
+    );
 
-    return priceOfToken0; // or priceNumber, depending on which direction you need
+    return {
+      ratio: readablePrice > 0 ? readablePrice : "Error: Price too low",
+      token0Symbol: token0.symbol,
+      token1Symbol: token1.symbol,
+    };
   } catch (error) {
-    console.error("Error fetching price:", error);
-    return 0; // Handle the error appropriately
+    console.error("Error fetching price with v3PoolABI:", error);
+    return {
+      ratio: "Error",
+      token0Symbol: token0.symbol,
+      token1Symbol: token1.symbol,
+      errorMessage: "Error fetching price",
+    };
   }
 };
-
-// Example usage
-getRatio("0xaD0F9ea50903e3992FC74E33a0d5471aDe15F14e").then((price) => {
-  console.log(price);
-});
