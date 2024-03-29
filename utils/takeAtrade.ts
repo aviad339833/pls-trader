@@ -1,5 +1,5 @@
 import { ethers } from "hardhat";
-import { addresses, LIVE_RPC_URL, LIVE_WALLET_KEY } from "../config/config";
+import { addresses, LIVE_RPC_URL } from "../config/config";
 import wpls_ABI from "../abis/wpls_ABI.json";
 import router_ABI from "../abis/router_ABI.json";
 import { getBalance } from "./getTokenBlance";

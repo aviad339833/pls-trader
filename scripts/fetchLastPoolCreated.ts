@@ -8,6 +8,7 @@ import {
   bigIntToDecimalString,
   checkLiquidity,
   getTokenDetails,
+  logTokenDetails,
 } from "../utils/utils";
 import {
   LpTestResult,
@@ -45,8 +46,11 @@ async function fetchAndLogLastPoolsWithWPLS(plsPrice) {
       foundPools++;
 
       // Since liquidity check passed, now fetch the ratio
-      const ratioResult = await getRatio(poolAddress, token0, token1);
+      console.log("\n\n\n");
+
       console.log(`POOL CREATED: ${poolAddress}`);
+      const ratioResult = await getRatio(poolAddress, token0, token1);
+      console.log("\n\n\n");
       if (ratioResult.errorMessage) {
         console.error(`Unable to fetch ratio: ${ratioResult.errorMessage}`);
       } else {

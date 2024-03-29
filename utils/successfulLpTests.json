@@ -656,5 +656,165 @@
       "liquidityCheck": "Success",
       "ratio": "1 BCC = Error: Price too low WPLS"
     }
+  },
+  {
+    "timestamp": "2024-03-27T18:25:46.762Z",
+    "tokenPair": "CrazyFrog/WPLS",
+    "transactionHash": "N/A",
+    "details": {
+      "poolAddress": "0xB571b74493F466de551C18429f6B89D20F566528",
+      "liquidityCheck": "Success",
+      "ratio": "1 CrazyFrog = 3.402567865403252e+30 WPLS"
+    }
+  },
+  {
+    "timestamp": "2024-03-27T18:26:49.925Z",
+    "tokenPair": "TWIFR/WPLS",
+    "transactionHash": "N/A",
+    "details": {
+      "poolAddress": "0x170D7c55A11dB1FFeDE3a0b787D46311AF010499",
+      "liquidityCheck": "Success",
+      "ratio": "1 TWIFR = 1.1e-17 WPLS"
+    }
+  },
+  {
+    "timestamp": "2024-03-27T18:26:58.753Z",
+    "tokenPair": "BEER404/WPLS",
+    "transactionHash": "N/A",
+    "details": {
+      "poolAddress": "0x35E567113ebbab3Be5c1F912EbF526Be25bf0Ed5",
+      "liquidityCheck": "Success",
+      "ratio": "1 BEER404 = Error: Price too low WPLS"
+    }
+  },
+  {
+    "timestamp": "2024-03-27T18:27:33.574Z",
+    "tokenPair": "BCC/WPLS",
+    "transactionHash": "N/A",
+    "details": {
+      "poolAddress": "0x51D4be0855b6185eA8F1A014BCa6805d29C7a834",
+      "liquidityCheck": "Success",
+      "ratio": "1 BCC = Error: Price too low WPLS"
+    }
+  },
+  {
+    "timestamp": "2024-03-27T18:35:45.803Z",
+    "tokenPair": "CrazyFrog/WPLS",
+    "transactionHash": "N/A",
+    "details": {
+      "poolAddress": "0xB571b74493F466de551C18429f6B89D20F566528",
+      "liquidityCheck": "Success",
+      "ratio": "1 CrazyFrog = 3.402567865403252e+30 WPLS"
+    }
+  },
+  {
+    "timestamp": "2024-03-27T18:36:49.536Z",
+    "tokenPair": "TWIFR/WPLS",
+    "transactionHash": "N/A",
+    "details": {
+      "poolAddress": "0x170D7c55A11dB1FFeDE3a0b787D46311AF010499",
+      "liquidityCheck": "Success",
+      "ratio": "1 TWIFR = 1.1e-17 WPLS"
+    }
+  },
+  {
+    "timestamp": "2024-03-27T18:36:57.924Z",
+    "tokenPair": "BEER404/WPLS",
+    "transactionHash": "N/A",
+    "details": {
+      "poolAddress": "0x35E567113ebbab3Be5c1F912EbF526Be25bf0Ed5",
+      "liquidityCheck": "Success",
+      "ratio": "1 BEER404 = Error: Price too low WPLS"
+    }
+  },
+  {
+    "timestamp": "2024-03-27T18:37:34.241Z",
+    "tokenPair": "BCC/WPLS",
+    "transactionHash": "N/A",
+    "details": {
+      "poolAddress": "0x51D4be0855b6185eA8F1A014BCa6805d29C7a834",
+      "liquidityCheck": "Success",
+      "ratio": "1 BCC = Error: Price too low WPLS"
+    }
+  },
+  {
+    "timestamp": "2024-03-27T18:39:03.294Z",
+    "tokenPair": "CrazyFrog/WPLS",
+    "transactionHash": "N/A",
+    "details": {
+      "poolAddress": "0xB571b74493F466de551C18429f6B89D20F566528",
+      "liquidityCheck": "Success",
+      "ratio": "1 CrazyFrog = 3.402567865403252e+30 WPLS"
+    }
+  },
+  {
+    "timestamp": "2024-03-27T18:40:05.479Z",
+    "tokenPair": "TWIFR/WPLS",
+    "transactionHash": "N/A",
+    "details": {
+      "poolAddress": "0x170D7c55A11dB1FFeDE3a0b787D46311AF010499",
+      "liquidityCheck": "Success",
+      "ratio": "1 TWIFR = 1.1e-17 WPLS"
+    }
+  },
+  {
+    "timestamp": "2024-03-27T18:40:14.498Z",
+    "tokenPair": "BEER404/WPLS",
+    "transactionHash": "N/A",
+    "details": {
+      "poolAddress": "0x35E567113ebbab3Be5c1F912EbF526Be25bf0Ed5",
+      "liquidityCheck": "Success",
+      "ratio": "1 BEER404 = Error: Price too low WPLS"
+    }
+  },
+  {
+    "timestamp": "2024-03-27T18:40:50.372Z",
+    "tokenPair": "BCC/WPLS",
+    "transactionHash": "N/A",
+    "details": {
+      "poolAddress": "0x51D4be0855b6185eA8F1A014BCa6805d29C7a834",
+      "liquidityCheck": "Success",
+      "ratio": "1 BCC = Error: Price too low WPLS"
+    }
+  },
+  {
+    "timestamp": "2024-03-27T18:43:59.669Z",
+    "tokenPair": "CrazyFrog/WPLS",
+    "transactionHash": "N/A",
+    "details": {
+      "poolAddress": "0xB571b74493F466de551C18429f6B89D20F566528",
+      "liquidityCheck": "Success",
+      "ratio": "1 CrazyFrog = 3.402567865403252e+30 WPLS"
+    }
+  },
+  {
+    "timestamp": "2024-03-27T18:45:04.862Z",
+    "tokenPair": "TWIFR/WPLS",
+    "transactionHash": "N/A",
+    "details": {
+      "poolAddress": "0x170D7c55A11dB1FFeDE3a0b787D46311AF010499",
+      "liquidityCheck": "Success",
+      "ratio": "1 TWIFR = 1.1e-17 WPLS"
+    }
+  },
+  {
+    "timestamp": "2024-03-27T18:45:15.059Z",
+    "tokenPair": "BEER404/WPLS",
+    "transactionHash": "N/A",
+    "details": {
+      "poolAddress": "0x35E567113ebbab3Be5c1F912EbF526Be25bf0Ed5",
+      "liquidityCheck": "Success",
+      "ratio": "1 BEER404 = Error: Price too low WPLS"
+    }
+  },
+  {
+    "timestamp": "2024-03-27T18:45:50.739Z",
+    "tokenPair": "BCC/WPLS",
+    "transactionHash": "N/A",
+    "details": {
+      "poolAddress": "0x51D4be0855b6185eA8F1A014BCa6805d29C7a834",
+      "liquidityCheck": "Success",
+      "ratio": "1 BCC = Error: Price too low WPLS"
+    }
   }
 ]

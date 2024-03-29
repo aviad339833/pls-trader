@@ -117,35 +117,3 @@ export function logTokenDetails(token0: any, token1: any) {
   console.log(`TOKEN ADDRESS (${token0.symbol}): ${token0.tokenAddress}`);
   console.log(`TOKEN ADDRESS (${token1.symbol}): ${token1.tokenAddress}`);
 }
-
-export async function getTokenDetails(
-  tokenAddress: string,
-  provider: any
-): Promise<any> {
-  const tokenContract = new ethers.Contract(
-    tokenAddress,
-    minimalERC20ABI,
-    provider
-  );
-  try {
-    const [name, symbol, decimals, totalSupply] = await Promise.all([
-      tokenContract.name(),
-      tokenContract.symbol(),
-      tokenContract.decimals(),
-      tokenContract.totalSupply(),
-    ]);
-    return {
-      tokenAddress: tokenAddress,
-      name,
-      symbol,
-      decimals: decimals.toString(),
-      totalSupply: totalSupply.toString(),
-    };
-  } catch (error) {
-    console.error(
-      `Error fetching details for token at ${tokenAddress}:`,
-      error
-    );
-    return null;
-  }
-}
