@@ -1,5 +1,6 @@
 {
   "scripts": {
+    "run": "npx hardhat run sqlLIte/showSQLtable.ts",
     "showTable": "npx hardhat run sqlLIte/showSQLtable.ts",
     "trade": "npx hardhat run scripts/trade.ts",
     "stuck": "npx hardhat run scripts/resetNounce.ts",
@@ -8,6 +9,7 @@
     "getRatio": "npx hardhat run scripts/getRatio.ts",
     "getPools": "npx hardhat run scripts/getPools.ts",
     "lastPool": "npx hardhat run scripts/fetchLastPoolCreated.ts",
+    "balance": "npx hardhat run scriptsBot/main.ts",
     "fork": "npx hardhat node --fork https://rpc.pulsechain.com --fork-block-number 18156443"
   },
   "devDependencies": {
