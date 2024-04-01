@@ -1,7 +1,8 @@
-import { ethers } from "ethers";
+import { ethers } from "hardhat";
 import * as dotenv from "dotenv";
 import * as fs from "fs";
 import erc20Abi from "../abis/wpls_ABI.json";
+import { JsonRpcProvider } from "ethers";
 
 dotenv.config();
 
@@ -21,14 +22,16 @@ interface WalletConfig {
 }
 
 // Read the JSON configuration for tokens and wallets
-const config = JSON.parse(fs.readFileSync("config.json", "utf8")) as {
+const config = JSON.parse(
+  fs.readFileSync("scriptsBot/config.json", "utf8")
+) as {
   tokens: TokenConfig;
   wallets: WalletConfig[];
 };
 
 // Function to fetch the token balance
 async function getTokenBalance(
-  provider: ethers.JsonRpcProvider,
+  provider: JsonRpcProvider,
   tokenAddress: string,
   walletAddress: string,
   decimals: number
@@ -43,19 +46,15 @@ async function getTokenBalance(
   }
 }
 
-async function fetchBalances(): Promise<void> {
-  const provider = new ethers.JsonRpcProvider(process.env.ETH_PROVIDER);
-
+async function fetchBalances(provider: JsonRpcProvider): Promise<void> {
   for (const wallet of config.wallets) {
-    // Outer loop over wallets
     console.log(`Balances for ${wallet.name} (${wallet.address}):`);
 
     for (const [tokenName, tokenInfo] of Object.entries(config.tokens)) {
-      // Inner loop over tokens
       try {
-        const tokenAddress: any =
-          tokenInfo.type === "native" ? "native" : tokenInfo.address;
-        const decimals = tokenInfo.type === "native" ? 18 : tokenInfo.decimals; // Using 18 for native asset
+        const tokenAddress =
+          tokenInfo.type === "native" ? "native" : tokenInfo.address!;
+        const decimals = tokenInfo.type === "native" ? 18 : tokenInfo.decimals;
         const balance = await getTokenBalance(
           provider,
           tokenAddress,
@@ -72,5 +71,17 @@ async function fetchBalances(): Promise<void> {
   }
 }
 
-// Run the function to fetch balances
-fetchBalances().catch(console.error);
+async function main(): Promise<void> {
+  const provider = new ethers.JsonRpcProvider(process.env.LIVE_RPC);
+
+  // Fetch all balances first before starting the interval
+  await fetchBalances(provider);
+
+  // Set an interval to fetch balances every 20 seconds
+  setInterval(async () => {
+    console.clear();
+    await fetchBalances(provider);
+  }, 20000);
+}
+
+main().catch(console.error);
