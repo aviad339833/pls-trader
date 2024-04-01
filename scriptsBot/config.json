@@ -1,0 +1,64 @@
+{
+  "tokens": {
+    "PLS": {
+      "type": "native",
+      "decimals": 18
+    },
+    "WPLS": {
+      "type": "erc20",
+      "address": "0xA1077a294dDE1B09bB078844df40758a5D0f9a27",
+      "decimals": 18
+    },
+    "HTP": {
+      "type": "erc20",
+      "address": "0x7c7ba94b60270bc2c7d98d3498b5ce85b870a749",
+      "decimals": 18
+    }
+  },
+  "wallets": [
+    {
+      "name": "Master Wallet",
+      "address": "0x4025C90C51a811EC329837EBCB6434789ed328B9"
+    },
+    {
+      "name": "WALLET_ADDRESS_1",
+      "address": "0xDa5588428adf67Ca906063A2BcEC00F9730c9697"
+    },
+    {
+      "name": "WALLET_ADDRESS_2",
+      "address": "0x5013342DCDdf22Ba3B19b405E7B6eB634cC8912a"
+    },
+    {
+      "name": "WALLET_ADDRESS_3",
+      "address": "0x82229AcB3470A880C0F85C154Cc5B376c93cEc53"
+    },
+    {
+      "name": "WALLET_ADDRESS_4",
+      "address": "0xD13974BE49c43e4a022C381502dC89E448B4f3E6"
+    },
+    {
+      "name": "WALLET_ADDRESS_5",
+      "address": "0x34df404aB837627969866E8725095d5Ab5f03d5e"
+    },
+    {
+      "name": "WALLET_ADDRESS_6",
+      "address": "0xf1F34225cC902261a3E1E4A4CB609C6df75D937c"
+    },
+    {
+      "name": "WALLET_ADDRESS_7",
+      "address": "0x11d1c5cd049aF2c9a9cC2765dD0695da5b5A504D"
+    },
+    {
+      "name": "WALLET_ADDRESS_8",
+      "address": "0xA5456c7084Eebd81052E06582B740fC90249C068"
+    },
+    {
+      "name": "WALLET_ADDRESS_9",
+      "address": "0xBC5897A090592946290b3aa188DD6C02ABa26e15"
+    },
+    {
+      "name": "WALLET_ADDRESS_10",
+      "address": "0xCB86D67FB5c47Ef81fA5e8cd06f1d217B051D91E"
+    }
+  ]
+}
