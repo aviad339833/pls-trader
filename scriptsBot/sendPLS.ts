@@ -66,7 +66,7 @@ async function sendPLSToWallets(
 async function main(): Promise<void> {
   const provider = new ethers.JsonRpcProvider(process.env.LIVE_RPC);
   const senderPrivateKey = process.env.WALLET_PK_MASTER as string;
-  const amountInPLS = "100"; // The fixed amount of PLS you want to send
+  const amountInPLS = "90000"; // The fixed amount of PLS you want to send
 
   await sendPLSToWallets(provider, senderPrivateKey, amountInPLS);
 }
