@@ -7,7 +7,7 @@
     "getRatios": "npx hardhat run scripts/ratios.ts",
     "getRatio": "npx hardhat run scripts/getRatio.ts",
     "getPools": "npx hardhat run scripts/getPools.ts",
-    "lastPool": "npx hardhat run scripts/fetchLastPoolCreated.ts",
+    "watchPools": "npx hardhat run scripts/fetchLastPoolCreated.ts",
     "balance": "npx hardhat run scriptsBot/viewBalances.ts",
     "sendPLS": "npx hardhat run scriptsBot/sendPLS.ts",
     "trade": "npx hardhat run scriptsBot/main.ts",

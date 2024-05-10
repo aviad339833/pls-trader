@@ -1,25 +1,22 @@
 require("dotenv").config();
 import { ethers } from "ethers";
-import factoryABI from "../abis/9mm_v3_factory.json"; // Make sure the path is correct
+import factoryABI from "../abis/9mm_v3_factory.json"; // Ensure the path is correct
+import erc20ABI from "../abis/wpls_ABI.json"; // Ensure the path is correct
+import { LIVE_RPC_URL } from "../config/config";
+import { getTimeElapsed } from "../scriptsBot/utils/utilsGeneral";
 
-import { LIVE_RPC_URL, addresses } from "../config/config";
-import { getRatio } from "./getRatio";
-import {
-  bigIntToDecimalString,
-  checkLiquidity,
-  getTokenDetails,
-  logTokenDetails,
-} from "../utils/utils";
-import {
-  LpTestResult,
-  logSuccessfulLpTest,
-} from "../utils/logSuccessfulLpTest";
-import { getPairRatiov2 } from "./getPairRatioV2";
-const WPLS_ADDRESS = addresses.WPLS.TOKEN_ADDRESS.toLowerCase();
 const provider = new ethers.JsonRpcProvider(LIVE_RPC_URL);
 const factoryAddress = process.env.LP_FACTORY_CONTRACT_ADDRESS!;
 
-async function fetchAndLogLastPoolsWithWPLS(plsPrice) {
+async function getTokenDetails(address) {
+  const tokenContract = new ethers.Contract(address, erc20ABI, provider);
+  const symbol = await tokenContract.symbol();
+  const name = await tokenContract.name();
+  const decimals = await tokenContract.decimals();
+  return { symbol, name, decimals };
+}
+
+async function fetchAndLogLastPools() {
   const factoryContract = new ethers.Contract(
     factoryAddress,
     factoryABI,
@@ -30,65 +27,42 @@ async function fetchAndLogLastPoolsWithWPLS(plsPrice) {
   const uniquePools = new Set();
   let foundPools = 0;
 
-  for (let i = events.length - 1; i >= 0 && foundPools < 30; i--) {
-    const event = events[i].args;
-    const poolAddress = event.pool;
-    if (uniquePools.has(poolAddress)) {
-      continue; // Skip if already processed
-    }
+  for (let i = events.length - 1; i >= 0 && foundPools < 10; i--) {
+    const event = events[i];
+    const poolAddress = event.args.pool;
+    if (uniquePools.has(poolAddress)) continue; // Skip if already processed
     uniquePools.add(poolAddress);
-    const token0 = await getTokenDetails(event.token0, provider);
-    const token1 = await getTokenDetails(event.token1, provider);
 
-    // First, perform the liquidity check
-    try {
-      await checkLiquidity(event.token1, event.token0);
-      foundPools++;
+    // Get block timestamp
+    const block = await provider.getBlock(event.blockNumber);
+    const timestamp = new Date(block.timestamp * 1000);
+    const timeElapsed = getTimeElapsed(timestamp);
 
-      // Since liquidity check passed, now fetch the ratio
-      console.log("\n\n\n");
+    // Get token details
+    const token0Details = await getTokenDetails(event.args.token0);
+    const token1Details = await getTokenDetails(event.args.token1);
 
-      console.log(`POOL CREATED: ${poolAddress}`);
-      const ratioResult = await getRatio(poolAddress, token0, token1);
-      console.log("\n\n\n");
-      if (ratioResult.errorMessage) {
-        console.error(`Unable to fetch ratio: ${ratioResult.errorMessage}`);
-      } else {
-        console.log(
-          `Ratio: 1 ${ratioResult.token0Symbol} = ${ratioResult.ratio} ${ratioResult.token1Symbol}`
-        );
-      }
-
-      // Logging successful LP test result
-      const result: LpTestResult = {
-        timestamp: new Date(),
-        tokenPair: `${token0.symbol}/${token1.symbol}`,
-        transactionHash: "N/A", // Use actual transaction hash if available
-        details: {
-          poolAddress,
-          liquidityCheck: "Success",
-          // Include the ratio in your logged details if needed
-          ratio: ratioResult.errorMessage
-            ? "Error fetching ratio"
-            : `1 ${ratioResult.token0Symbol} = ${ratioResult.ratio} ${ratioResult.token1Symbol}`,
-        },
-      };
-      await logSuccessfulLpTest(result);
-    } catch (error) {
-      console.error(
-        `Error processing pool ${poolAddress} for ${token0.symbol}/${token1.symbol}: ${error}`
-      );
-    }
+    // Log pool information
+    console.log(`POOL CREATED: ${poolAddress}`);
+    console.log(`Creation Time: ${timestamp.toISOString()} (${timeElapsed})`);
+    console.log(
+      `Token0: ${event.args.token0} - ${token0Details.symbol} (${token0Details.name})`
+    );
+    console.log(
+      `Token1: ${event.args.token1} - ${token1Details.symbol} (${token1Details.name})`
+    );
+    console.log(`Fee: ${event.args.fee}`);
+    console.log("---");
+    foundPools++;
   }
 
   if (foundPools === 0) {
-    console.log("No new pools found in the last 30 pools created.");
+    console.log("No new pools found among the last few events.");
   }
 }
 
 async function listenForNewPools() {
-  const plsPrice = await getPairRatiov2(addresses.WPLS);
-  await fetchAndLogLastPoolsWithWPLS(plsPrice); // Initial fetch and log
+  await fetchAndLogLastPools(); // Initial fetch and log
 
   const factoryContract = new ethers.Contract(
     factoryAddress,
@@ -98,32 +72,26 @@ async function listenForNewPools() {
   factoryContract.on(
     "PoolCreated",
     async (token0, token1, fee, tickSpacing, pool) => {
-      const otherTokenAddress =
-        token0.toLowerCase() === WPLS_ADDRESS ? token1 : token0;
-      if (otherTokenAddress.toLowerCase() !== WPLS_ADDRESS) {
-        // Ensure we're not handling WPLS itself
-        const otherTokenDetails = await getTokenDetails(
-          otherTokenAddress,
-          provider
-        );
-        console.log(`New WPLS Pool Created: ${pool}`);
-        console.log(
-          `- Other Token: ${otherTokenDetails.symbol} (${otherTokenDetails.name})`
-        );
-        console.log(`- Decimals: ${otherTokenDetails.decimals}`);
-        console.log(
-          `- Total Supply: ${bigIntToDecimalString(
-            otherTokenDetails.totalSupply,
-            otherTokenDetails.decimals
-          ).toLocaleString()}`
-        );
-        console.log(`- Fee: ${fee}`);
-        console.log("---");
-      }
+      const block = await provider.getBlock(event.blockNumber);
+      const timestamp = new Date(block.timestamp * 1000);
+      const timeElapsed = getTimeElapsed(timestamp);
+      const token0Details = await getTokenDetails(token0);
+      const token1Details = await getTokenDetails(token1);
+
+      console.log(`New Pool Created: ${pool}`);
+      console.log(`Creation Time: ${timestamp.toISOString()} (${timeElapsed})`);
+      console.log(
+        `Token0: ${token0} - ${token0Details.symbol} (${token0Details.name})`
+      );
+      console.log(
+        `Token1: ${token1} - ${token1Details.symbol} (${token1Details.name})`
+      );
+      console.log(`Fee: ${fee}`);
+      console.log("---");
     }
   );
 
-  console.log("Listening for new WPLS pools...");
+  console.log("Listening for new pools...");
 }
 
 listenForNewPools().catch(console.error);
