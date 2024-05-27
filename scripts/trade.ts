@@ -45,20 +45,23 @@ async function main() {
   const dai_contract = new ethers.Contract(DAI_ADDRESS, wpls_ABI, signer);
 
   // Entry price
-  const entryPrice = 0.000049060952758;
+  const entryPrice = 0.000048910969116;
 
   // Initial stop-loss price
-  let stopLossPrice = 0.000048495870613;
+  let stopLossPrice = 0.000048419634488;
   const initialStopLossPrice = stopLossPrice;
 
   // Choose growth rate and interval
   const growthRateOption1 = { rate: 0.02, hours: 5 }; // 2% in 5 hours
-  const growthRateOption2 = { rate: 0.03, hours: 24 }; // 3% in 24 hours
+  const growthRateOption2 = { rate: 0.1, hours: 1 }; // 3% in 24 hours
 
   const selectedOption = growthRateOption2; // Change to growthRateOption1 for the other option
 
   const growthRate = selectedOption.rate;
   const growthIntervalHours = selectedOption.hours;
+
+  // Delay before the stop-loss starts rising (in seconds)
+  const delayBeforeRising = 1 * 60; // 120 minutes
 
   // Calculate the increment per second
   const secondsInInterval = growthIntervalHours * 60 * 60;
@@ -124,8 +127,47 @@ async function main() {
         } has fallen to the stop-loss price. Current price: ${currentPrice}`
       );
     }
+  };
 
-    // Increment the stop-loss price
+  const logAndUpdateStopLoss = async () => {
+    const ratio = await getRatio();
+    console.log(`Ratio: ${ratio}, targetRatio: ${targetRatio}`);
+
+    const currentPrice = Number(ratio) / Number(amplifier);
+    console.log(`Current Price: ${currentPrice}`);
+    console.log(`Original Stop-Loss Price: ${initialStopLossPrice}`);
+    console.log(`Current Stop-Loss Price: ${stopLossPrice}`);
+
+    const percentageIncrease =
+      ((stopLossPrice - initialStopLossPrice) / initialStopLossPrice) * 100;
+    const distanceCurrentToStopLoss =
+      ((currentPrice - stopLossPrice) / stopLossPrice) * 100;
+    const distanceCurrentToInitialStopLoss =
+      ((currentPrice - initialStopLossPrice) / initialStopLossPrice) * 100;
+
+    console.log(
+      `Stop-Loss Price has increased by: ${percentageIncrease.toFixed(10)}%`
+    );
+    console.log(
+      `Distance from Current Price to Current Stop-Loss: ${distanceCurrentToStopLoss.toFixed(
+        10
+      )}%`
+    );
+    console.log(
+      `Distance from Current Price to Original Stop-Loss: ${distanceCurrentToInitialStopLoss.toFixed(
+        10
+      )}%`
+    );
+
+    if (currentPrice <= stopLossPrice) {
+      console.log(
+        `ALERT: Current price of ${
+          tradePLStoDAI ? "PLS" : "DAI"
+        } has fallen to the stop-loss price. Current price: ${currentPrice}`
+      );
+    }
+
+    // Increment the stop-loss price only if delay period has passed
     stopLossPrice += growthIncrement;
 
     // Log the rate of stop-loss rise
@@ -138,9 +180,18 @@ async function main() {
 
   async function poll(ms: number) {
     let result = await logTradeInfo();
+    let elapsedTime = 0;
+    const startTime = Date.now(); // Record the start time
+
     while (true) {
       await wait(ms);
-      result = await logTradeInfo();
+      elapsedTime = (Date.now() - startTime) / 1000; // Calculate elapsed time in seconds
+
+      if (elapsedTime > delayBeforeRising) {
+        result = await logAndUpdateStopLoss();
+      } else {
+        result = await logTradeInfo();
+      }
     }
   }
 
