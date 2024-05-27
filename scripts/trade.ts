@@ -51,14 +51,26 @@ async function main() {
   let stopLossPrice = 0.000048495870613;
   const initialStopLossPrice = stopLossPrice;
 
-  // Growth rates and intervals
-  const growthRate24Hours = 0.03; // 3% in 24 hours
-  const growthIntervalSeconds = 1; // Growth interval in seconds
+  // Choose growth rate and interval
+  const growthRateOption1 = { rate: 0.02, hours: 5 }; // 2% in 5 hours
+  const growthRateOption2 = { rate: 0.03, hours: 24 }; // 3% in 24 hours
+
+  const selectedOption = growthRateOption2; // Change to growthRateOption1 for the other option
+
+  const growthRate = selectedOption.rate;
+  const growthIntervalHours = selectedOption.hours;
 
   // Calculate the increment per second
-  const secondsIn24Hours = 24 * 60 * 60;
+  const secondsInInterval = growthIntervalHours * 60 * 60;
   const growthIncrement =
-    initialStopLossPrice * (growthRate24Hours / secondsIn24Hours);
+    initialStopLossPrice * (growthRate / secondsInInterval);
+
+  console.log(`Initial settings:`);
+  console.log(`Entry Price: ${entryPrice}`);
+  console.log(`Original Stop-Loss Price: ${initialStopLossPrice}`);
+  console.log(
+    `Growth Rate: ${growthRate * 100}% in ${growthIntervalHours} hours`
+  );
 
   const getRatio = async () => {
     try {
@@ -115,6 +127,13 @@ async function main() {
 
     // Increment the stop-loss price
     stopLossPrice += growthIncrement;
+
+    // Log the rate of stop-loss rise
+    console.log(
+      `Stop-Loss is rising at a rate of ${
+        (growthIncrement / initialStopLossPrice) * 100
+      }% per second.`
+    );
   };
 
   async function poll(ms: number) {
@@ -132,7 +151,7 @@ async function main() {
     });
   }
 
-  await poll(growthIntervalSeconds * 1000);
+  await poll(1000); // Poll every second
 }
 
 main().catch((error) => {
