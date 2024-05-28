@@ -17,7 +17,7 @@ async function main() {
 
   const amplifier = 10000000000n;
 
-  let targetRatio: BigInt;
+  let targetRatio;
   if (tradePLStoDAI) {
     targetRatio = BigInt(
       Math.round(Number(amplifier) * targetRatioDecimalsPLStoDai)
@@ -45,7 +45,7 @@ async function main() {
   const dai_contract = new ethers.Contract(DAI_ADDRESS, wpls_ABI, signer);
 
   // Entry price
-  const entryPrice = 0.000048910969116;
+  const entryPrice = 0.000048697141989;
 
   // Initial stop-loss price
   let stopLossPrice = 0.000048419634488;
@@ -53,7 +53,7 @@ async function main() {
 
   // Choose growth rate and interval
   const growthRateOption1 = { rate: 0.02, hours: 5 }; // 2% in 5 hours
-  const growthRateOption2 = { rate: 0.1, hours: 1 }; // 3% in 24 hours
+  const growthRateOption2 = { rate: 0.1, hours: 1 }; // 10% in 1 hour
 
   const selectedOption = growthRateOption2; // Change to growthRateOption1 for the other option
 
@@ -61,7 +61,10 @@ async function main() {
   const growthIntervalHours = selectedOption.hours;
 
   // Delay before the stop-loss starts rising (in seconds)
-  const delayBeforeRising = 1 * 60; // 120 minutes
+  const delayBeforeRising = 120 * 60; // 120 minutes
+
+  // Percentage increase from entry price to trigger stop-loss rise
+  const percentageIncreaseToTrigger = 1; // 1%
 
   // Calculate the increment per second
   const secondsInInterval = growthIntervalHours * 60 * 60;
@@ -78,7 +81,7 @@ async function main() {
   const getRatio = async () => {
     try {
       const reserves = await pair_contract.getReserves();
-      let ratio: BigInt;
+      let ratio;
       if (tradePLStoDAI) {
         ratio = (amplifier * reserves[1]) / reserves[0];
       } else {
@@ -90,32 +93,42 @@ async function main() {
     }
   };
 
-  const logTradeInfo = async () => {
+  const logTradeInfo = async (remainingTime) => {
     const ratio = await getRatio();
-    console.log(`Ratio: ${ratio}, targetRatio: ${targetRatio}`);
-
     const currentPrice = Number(ratio) / Number(amplifier);
-    console.log(`Current Price: ${currentPrice}`);
-    console.log(`Original Stop-Loss Price: ${initialStopLossPrice}`);
-    console.log(`Current Stop-Loss Price: ${stopLossPrice}`);
-
-    const percentageIncrease =
+    const priceIncreaseFromEntry =
+      ((currentPrice - entryPrice) / entryPrice) * 100;
+    const stopLossIncreasePercentage =
       ((stopLossPrice - initialStopLossPrice) / initialStopLossPrice) * 100;
     const distanceCurrentToStopLoss =
       ((currentPrice - stopLossPrice) / stopLossPrice) * 100;
-    const distanceCurrentToInitialStopLoss =
-      ((currentPrice - initialStopLossPrice) / initialStopLossPrice) * 100;
 
     console.log(
-      `Stop-Loss Price has increased by: ${percentageIncrease.toFixed(10)}%`
-    );
-    console.log(
-      `Distance from Current Price to Current Stop-Loss: ${distanceCurrentToStopLoss.toFixed(
+      `Entry Price: ${entryPrice} | Change from Entry Price: ${priceIncreaseFromEntry.toFixed(
         10
       )}%`
     );
     console.log(
-      `Distance from Current Price to Original Stop-Loss: ${distanceCurrentToInitialStopLoss.toFixed(
+      `Current Stop-Loss: ${stopLossPrice} | Change from Original Stop-Loss: ${stopLossIncreasePercentage.toFixed(
+        10
+      )}%`
+    );
+    console.log(
+      `Original Stop-Loss: ${initialStopLossPrice} | Distance from Entry to Original Stop-Loss: ${(
+        ((entryPrice - initialStopLossPrice) / initialStopLossPrice) *
+        100
+      ).toFixed(10)}%`
+    );
+    console.log(
+      `Stop-Loss Price has increased by: ${stopLossIncreasePercentage.toFixed(
+        10
+      )}%`
+    );
+    console.log(
+      `Timer until stop-loss rise: ${remainingTime.toFixed(3)} seconds`
+    );
+    console.log(
+      `Distance from Current Price to Current Stop-Loss: ${distanceCurrentToStopLoss.toFixed(
         10
       )}%`
     );
@@ -129,32 +142,39 @@ async function main() {
     }
   };
 
-  const logAndUpdateStopLoss = async () => {
+  const logAndUpdateStopLoss = async (elapsedTime) => {
     const ratio = await getRatio();
-    console.log(`Ratio: ${ratio}, targetRatio: ${targetRatio}`);
-
     const currentPrice = Number(ratio) / Number(amplifier);
-    console.log(`Current Price: ${currentPrice}`);
-    console.log(`Original Stop-Loss Price: ${initialStopLossPrice}`);
-    console.log(`Current Stop-Loss Price: ${stopLossPrice}`);
-
-    const percentageIncrease =
+    const stopLossIncreasePercentage =
       ((stopLossPrice - initialStopLossPrice) / initialStopLossPrice) * 100;
     const distanceCurrentToStopLoss =
       ((currentPrice - stopLossPrice) / stopLossPrice) * 100;
-    const distanceCurrentToInitialStopLoss =
-      ((currentPrice - initialStopLossPrice) / initialStopLossPrice) * 100;
 
     console.log(
-      `Stop-Loss Price has increased by: ${percentageIncrease.toFixed(10)}%`
+      `Entry Price: ${entryPrice} | Change from Entry Price: ${(
+        ((currentPrice - entryPrice) / entryPrice) *
+        100
+      ).toFixed(10)}%`
     );
     console.log(
-      `Distance from Current Price to Current Stop-Loss: ${distanceCurrentToStopLoss.toFixed(
+      `Current Stop-Loss: ${stopLossPrice} | Change from Original Stop-Loss: ${stopLossIncreasePercentage.toFixed(
         10
       )}%`
     );
     console.log(
-      `Distance from Current Price to Original Stop-Loss: ${distanceCurrentToInitialStopLoss.toFixed(
+      `Original Stop-Loss: ${initialStopLossPrice} | Distance from Entry to Original Stop-Loss: ${(
+        ((entryPrice - initialStopLossPrice) / initialStopLossPrice) *
+        100
+      ).toFixed(10)}%`
+    );
+    console.log(
+      `Stop-Loss Price has increased by: ${stopLossIncreasePercentage.toFixed(
+        10
+      )}%`
+    );
+    console.log(`Timer until stop-loss rise: 0.000 seconds`); // Since it started rising
+    console.log(
+      `Distance from Current Price to Current Stop-Loss: ${distanceCurrentToStopLoss.toFixed(
         10
       )}%`
     );
@@ -167,37 +187,68 @@ async function main() {
       );
     }
 
-    // Increment the stop-loss price only if delay period has passed
-    stopLossPrice += growthIncrement;
+    if (
+      elapsedTime > delayBeforeRising ||
+      (currentPrice - stopLossPrice) / stopLossPrice >=
+        (entryPrice - initialStopLossPrice) / initialStopLossPrice
+    ) {
+      // Increment the stop-loss price only if delay period has passed
+      stopLossPrice += growthIncrement;
 
-    // Log the rate of stop-loss rise
-    console.log(
-      `Stop-Loss is rising at a rate of ${
-        (growthIncrement / initialStopLossPrice) * 100
-      }% per second.`
-    );
+      console.log(
+        `Stop-Loss is rising at a rate of ${
+          (growthIncrement / initialStopLossPrice) * 100
+        }% per second.`
+      );
+
+      console.log(
+        `Condition met: ${
+          elapsedTime > delayBeforeRising
+            ? `the delay of ${delayBeforeRising / 60} minutes has passed`
+            : `the price rise condition met`
+        }`
+      );
+    }
   };
 
-  async function poll(ms: number) {
-    let result = await logTradeInfo();
+  async function poll(ms) {
+    const logs = [];
     let elapsedTime = 0;
     const startTime = Date.now(); // Record the start time
 
     while (true) {
       await wait(ms);
       elapsedTime = (Date.now() - startTime) / 1000; // Calculate elapsed time in seconds
+      const remainingTime = delayBeforeRising - elapsedTime;
 
-      if (elapsedTime > delayBeforeRising) {
-        result = await logAndUpdateStopLoss();
+      const ratio = await getRatio();
+      const currentPrice = Number(ratio) / Number(amplifier);
+      const priceIncreaseFromEntry =
+        ((currentPrice - entryPrice) / entryPrice) * 100;
+
+      if (
+        remainingTime <= 0 ||
+        priceIncreaseFromEntry >= percentageIncreaseToTrigger
+      ) {
+        logs.push(
+          `Stop-loss will start rising because ${
+            remainingTime <= 0
+              ? `the delay of ${delayBeforeRising / 60} minutes has passed`
+              : `the price has increased by ${percentageIncreaseToTrigger}% from the entry price`
+          }.`
+        );
+        await logAndUpdateStopLoss(elapsedTime);
       } else {
-        result = await logTradeInfo();
+        await logTradeInfo(remainingTime);
       }
+
+      logs.forEach((log) => console.log(log));
+      logs.length = 0; // Clear logs after printing
     }
   }
 
-  function wait(ms: number) {
+  function wait(ms) {
     return new Promise((resolve) => {
-      console.log(`waiting ${ms} ms...`);
       setTimeout(resolve, ms);
     });
   }
